@@ -40,6 +40,8 @@ func main() {
 			os.Exit(1)
 		}
 		cmdReceive(os.Args[2])
+	case "receive-web":
+		cmdReceiveWeb()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", os.Args[1])
 		usage()
@@ -122,7 +124,8 @@ func usage() {
 
 Usage:
   wormhole send <file>      Send a file and display the receive code
-  wormhole receive <code>   Receive a file using the code from the sender`)
+  wormhole receive <code>   Receive a file using the code from the sender
+  wormhole receive-web      Host a web upload page and display a QR code`)
 }
 
 func fatalf(format string, args ...any) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ type Relay struct {
 	pending map[string]*slot
 	timeout time.Duration
 	logger  zerolog.Logger
+	hub     *TunnelHub
 }
 
 type slot struct {
@@ -25,29 +27,59 @@ type slot struct {
 	pair chan net.Conn // second connection sends itself here
 }
 
-func New(timeout time.Duration, logger zerolog.Logger) *Relay {
+func New(timeout time.Duration, logger zerolog.Logger, hub *TunnelHub) *Relay {
 	return &Relay{
 		pending: make(map[string]*slot),
 		timeout: timeout,
 		logger:  logger,
+		hub:     hub,
 	}
 }
 
 // Handle manages a single incoming TCP connection. Call in a goroutine.
 func (r *Relay) Handle(conn net.Conn) {
 	conn.SetDeadline(time.Now().Add(30 * time.Second))
-	token, side, err := readHandshake(conn)
+	line, err := readLine(conn)
 	if err != nil {
-		fmt.Fprintf(conn, "error: invalid handshake\n")
 		conn.Close()
 		return
 	}
 	conn.SetDeadline(time.Time{})
 
-	logToken := token
-	if len(logToken) > 8 {
-		logToken = logToken[:8] + "..."
+	switch {
+	case strings.HasPrefix(line, "please relay "):
+		r.handleRelay(conn, line)
+	case strings.HasPrefix(line, "tunnel-data "):
+		token := strings.TrimPrefix(line, "tunnel-data ")
+		if r.hub != nil {
+			r.hub.acceptData(conn, token)
+		} else {
+			fmt.Fprintf(conn, "error: tunnels not enabled\n")
+			conn.Close()
+		}
+	case strings.HasPrefix(line, "tunnel "):
+		token := strings.TrimPrefix(line, "tunnel ")
+		if r.hub != nil {
+			r.hub.register(conn, token)
+		} else {
+			fmt.Fprintf(conn, "error: tunnels not enabled\n")
+			conn.Close()
+		}
+	default:
+		fmt.Fprintf(conn, "error: unknown command\n")
+		conn.Close()
 	}
+}
+
+func (r *Relay) handleRelay(conn net.Conn, line string) {
+	token, side, err := parseRelayHandshake(line)
+	if err != nil {
+		fmt.Fprintf(conn, "error: invalid handshake\n")
+		conn.Close()
+		return
+	}
+
+	logToken := abbrev(token)
 	r.logger.Debug().Str("token", logToken).Str("side", side).Msg("relay connection received")
 
 	r.mu.Lock()
@@ -57,7 +89,6 @@ func (r *Relay) Handle(conn net.Conn) {
 		r.pending[token] = s
 		r.mu.Unlock()
 
-		// First connection: wait for the second.
 		select {
 		case peer := <-s.pair:
 			r.splice(conn, peer, logToken)
@@ -72,7 +103,6 @@ func (r *Relay) Handle(conn net.Conn) {
 		return
 	}
 
-	// Second connection: pair with the first.
 	delete(r.pending, token)
 	r.mu.Unlock()
 
@@ -102,12 +132,7 @@ func (r *Relay) splice(a, b net.Conn, logToken string) {
 		Msg("relay pair disconnected")
 }
 
-// readHandshake reads "please relay TOKEN for SIDE\n" byte-by-byte.
-func readHandshake(conn net.Conn) (token, side string, err error) {
-	line, err := readLine(conn)
-	if err != nil {
-		return "", "", err
-	}
+func parseRelayHandshake(line string) (token, side string, err error) {
 	var p0, p1, p2, p3, p4 string
 	n, _ := fmt.Sscanf(line, "%s %s %s %s %s", &p0, &p1, &p2, &p3, &p4)
 	if n != 5 || p0 != "please" || p1 != "relay" || p3 != "for" {

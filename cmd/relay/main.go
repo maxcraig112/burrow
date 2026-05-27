@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,7 +27,17 @@ func main() {
 	}
 	logger = logger.Level(parseLevel(logger))
 
-	r := relay.New(2*time.Minute, logger)
+	tunnelPublicURL := os.Getenv("TUNNEL_PUBLIC_URL")
+	if tunnelPublicURL == "" {
+		tunnelPublicURL = "http://localhost:8082"
+	}
+	tunnelBind := os.Getenv("TUNNEL_BIND")
+	if tunnelBind == "" {
+		tunnelBind = ":8082"
+	}
+
+	hub := relay.NewTunnelHub(tunnelPublicURL, logger)
+	r := relay.New(2*time.Minute, logger, hub)
 
 	ln, err := net.Listen("tcp", ":9090")
 	if err != nil {
@@ -34,12 +45,28 @@ func main() {
 	}
 	logger.Info().Str("addr", ":9090").Msg("relay listening")
 
+	httpSrv := &http.Server{
+		Addr:         tunnelBind,
+		Handler:      hub,
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 10 * time.Minute,
+	}
+	go func() {
+		logger.Info().Str("addr", tunnelBind).Msg("tunnel HTTP listening")
+		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error().Err(err).Msg("tunnel HTTP server error")
+		}
+	}()
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	go func() {
 		<-ctx.Done()
 		ln.Close()
+		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		httpSrv.Shutdown(shutCtx)
 	}()
 
 	for {

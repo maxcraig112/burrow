@@ -3,8 +3,9 @@ package exchange
 import (
 	"time"
 
-	"github.com/rs/zerolog"
 	cache "github.com/patrickmn/go-cache"
+	"github.com/rs/zerolog"
+	"gopherhole/internal/nameplate"
 )
 
 // Exchange manages the lifecycle of pending send/receive sessions.
@@ -97,7 +98,7 @@ func (e *Exchange) Receive(nameplate, receiverPAKE string) (string, error) {
 // but handled correctly.
 func (e *Exchange) uniqueNameplate() string {
 	for {
-		np := generate()
+		np := nameplate.Generate()
 		if _, exists := e.cache.Get(np); !exists {
 			return np
 		}
