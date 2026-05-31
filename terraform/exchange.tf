@@ -17,9 +17,7 @@ resource "google_cloud_run_v2_service" "exchange" {
     timeout = "360s"
 
     containers {
-      # Placeholder so the initial `terraform apply` succeeds before any image
-      # has been pushed. The GitHub Actions workflow owns subsequent deploys.
-      image = "us-docker.pkg.dev/cloudrun/container/hello"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/burrow/exchange:latest"
 
       env {
         name  = "LOG_LEVEL"
@@ -49,10 +47,6 @@ resource "google_cloud_run_v2_service" "exchange" {
     google_artifact_registry_repository_iam_member.exchange_pull,
   ]
 
-  lifecycle {
-    # Image updates are managed by the GitHub Actions deploy step, not Terraform.
-    ignore_changes = [template[0].containers[0].image]
-  }
 }
 
 # Allow unauthenticated public access.

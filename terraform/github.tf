@@ -24,6 +24,14 @@ resource "google_project_iam_member" "github_run_developer" {
   depends_on = [google_project_service.apis["run.googleapis.com"]]
 }
 
+# Allow GitHub Actions to deploy Cloud Run services that run as burrow-exchange.
+# gcloud run deploy sets the service account on the revision, which requires actAs.
+resource "google_service_account_iam_member" "github_actAs_exchange" {
+  service_account_id = google_service_account.exchange.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 # Workload Identity Pool — the trust boundary for external identities.
 resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "burrow-github"

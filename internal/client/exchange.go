@@ -11,11 +11,11 @@ import (
 	"github.com/maxcraig112/burrow/internal/pake"
 )
 
-// ExchangeAddr and RelayAddr are the default server addresses. Override them
-// before calling any client functions (e.g. from environment variables).
+// ExchangeAddr and RelayAddr point at the deployed servers by default.
+// Override via EXCHANGE_ADDR / RELAY_ADDR env vars or a .env file for local dev.
 var (
-	ExchangeAddr = "localhost:8080"
-	RelayAddr    = "localhost:9090"
+	ExchangeAddr = "https://burrow-exchange-mhjxita5pq-uc.a.run.app"
+	RelayAddr    = "34.171.119.185:9090"
 )
 
 type wsMsg struct {
