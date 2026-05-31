@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -48,11 +47,9 @@ jobs:
         run: |
           mkdir -p dist
 
-          # Server binaries — Linux only (intended to run on a Linux server)
           GOOS=linux GOARCH=amd64 go build -trimpath -o dist/exchange-linux-amd64 ./cmd/exchange
           GOOS=linux GOARCH=amd64 go build -trimpath -o dist/relay-linux-amd64    ./cmd/relay
 
-          # Burrow CLI — all major platforms
           GOOS=linux   GOARCH=amd64 go build -trimpath -o dist/burrow-linux-amd64       ./cmd/burrow
           GOOS=darwin  GOARCH=amd64 go build -trimpath -o dist/burrow-darwin-amd64      ./cmd/burrow
           GOOS=darwin  GOARCH=arm64 go build -trimpath -o dist/burrow-darwin-arm64      ./cmd/burrow
@@ -63,10 +60,11 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: ${{ steps.version.outputs.version }}
+          prerelease: false
           generate_release_notes: true
           files: dist/*
 
-      # ── Docker Hub (versioned tags) ───────────────────────────────────────
+      # ── Docker Hub (versioned tag + latest) ──────────────────────────────────
       - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
@@ -97,3 +95,4 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/burrow-relay:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/burrow-relay:${{ steps.version.outputs.version }}
+

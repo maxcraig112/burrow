@@ -1,4 +1,4 @@
-name: Build and push Docker images
+name: RC release
 
 on:
   push:
@@ -11,18 +11,47 @@ on:
       - "go.sum"
 
 jobs:
-  build-push:
+  rc:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      id-token: write   # required for Workload Identity Federation
-
-    env:
-      REGION: us-central1
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Calculate RC version
+        id: version
+        run: |
+          base=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+          if [ -z "$base" ]; then base="v0.0.0"; fi
+          latest_rc=$(git tag --sort=-v:refname | grep -E "^${base}-rc[0-9]+$" | head -1)
+          if [ -z "$latest_rc" ]; then
+            rc_num=1
+          else
+            rc_num=$(echo "$latest_rc" | grep -oE '[0-9]+$')
+            rc_num=$((rc_num + 1))
+          fi
+          echo "version=${base}-rc${rc_num}" >> $GITHUB_OUTPUT
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+
+          GOOS=linux GOARCH=amd64 go build -trimpath -o dist/exchange-linux-amd64 ./cmd/exchange
+          GOOS=linux GOARCH=amd64 go build -trimpath -o dist/relay-linux-amd64    ./cmd/relay
+
+          GOOS=linux   GOARCH=amd64 go build -trimpath -o dist/burrow-linux-amd64       ./cmd/burrow
+          GOOS=darwin  GOARCH=amd64 go build -trimpath -o dist/burrow-darwin-amd64      ./cmd/burrow
+          GOOS=darwin  GOARCH=arm64 go build -trimpath -o dist/burrow-darwin-arm64      ./cmd/burrow
+          GOOS=windows GOARCH=amd64 go build -trimpath -o dist/burrow-windows-amd64.exe ./cmd/burrow
+
+      # ── Docker Hub (RC tag only, no latest) ──────────────────────────────────
       - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
@@ -39,7 +68,7 @@ jobs:
           file: deploy/exchange.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/burrow-exchange:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/burrow-exchange:${{ steps.version.outputs.version }}
 
       - name: Push relay to Docker Hub
         uses: docker/build-push-action@v6
@@ -48,28 +77,14 @@ jobs:
           file: deploy/relay.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/burrow-relay:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/burrow-relay:${{ steps.version.outputs.version }}
 
-      # ── GCP: deploy exchange to Cloud Run, reset relay VM ────────────────
-      - id: auth
-        uses: google-github-actions/auth@v2
+      # ── GitHub pre-release ───────────────────────────────────────────────────
+      - name: Create pre-release
+        uses: softprops/action-gh-release@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Deploy exchange to Cloud Run
-        run: |
-          gcloud run deploy burrow-exchange \
-            --image="maximiliancraig112/burrow-exchange:latest" \
-            --region="${{ env.REGION }}" \
-            --project="${{ secrets.GCP_PROJECT_ID }}" \
-            --quiet
-
-      - name: Reset relay VM to pull updated image
-        run: |
-          gcloud compute instances reset burrow-relay \
-            --zone="${{ env.REGION }}-a" \
-            --project="${{ secrets.GCP_PROJECT_ID }}" \
-            --quiet
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          prerelease: true
+          generate_release_notes: true
+          files: dist/*
