@@ -37,7 +37,7 @@ resource "google_compute_instance" "relay" {
     "gce-container-declaration" = yamlencode({
       spec = {
         containers = [{
-          image = "${var.region}-docker.pkg.dev/${var.project_id}/burrow/relay:latest"
+          image = "maximiliancraig112/burrow-relay:latest"
           env = [
             { name = "LOG_LEVEL", value = var.log_level },
             { name = "TUNNEL_BIND", value = ":8082" },
@@ -54,6 +54,5 @@ resource "google_compute_instance" "relay" {
 
   depends_on = [
     google_project_service.apis["compute.googleapis.com"],
-    google_artifact_registry_repository_iam_member.relay_pull,
   ]
 }

@@ -6,15 +6,6 @@ resource "google_service_account" "github_actions" {
   depends_on = [google_project_service.apis["iam.googleapis.com"]]
 }
 
-# Grant the service account write access to push images to Artifact Registry.
-resource "google_artifact_registry_repository_iam_member" "github_push" {
-  project    = var.project_id
-  location   = var.region
-  repository = google_artifact_registry_repository.burrow.name
-  role       = "roles/artifactregistry.writer"
-  member     = "serviceAccount:${google_service_account.github_actions.email}"
-}
-
 # Grant the service account permission to deploy new revisions to Cloud Run.
 resource "google_project_iam_member" "github_run_developer" {
   project = var.project_id
@@ -22,6 +13,15 @@ resource "google_project_iam_member" "github_run_developer" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 
   depends_on = [google_project_service.apis["run.googleapis.com"]]
+}
+
+# Allow GitHub Actions to reset the relay VM to pick up new Docker Hub images.
+resource "google_project_iam_member" "github_compute_admin" {
+  project = var.project_id
+  role    = "roles/compute.instanceAdmin.v1"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+
+  depends_on = [google_project_service.apis["compute.googleapis.com"]]
 }
 
 # Allow GitHub Actions to deploy Cloud Run services that run as burrow-exchange.

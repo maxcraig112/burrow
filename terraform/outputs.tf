@@ -26,11 +26,6 @@ output "burrow_env" {
   EOF
 }
 
-output "registry" {
-  description = "Artifact Registry path prefix (used in build-push script)"
-  value       = "${var.region}-docker.pkg.dev/${var.project_id}/burrow"
-}
-
 output "github_workload_identity_provider" {
   description = "Value for the GCP_WORKLOAD_IDENTITY_PROVIDER GitHub Actions secret"
   value       = google_iam_workload_identity_pool_provider.github.name

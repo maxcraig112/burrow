@@ -1,6 +1,6 @@
 # Self-hosting
 
-You can run your own exchange and relay servers on any Linux machine — a home server, a VPS, a Raspberry Pi, etc. Docker images are available for amd64 and arm64.
+You can run your own exchange and relay servers on a home server, VPS, Raspberry Pi, or GCP. Docker images are available for amd64 and arm64.
 
 ## Option 1: Docker Compose (recommended)
 
@@ -40,6 +40,50 @@ Then start them (each in its own terminal, or use systemd/screen/tmux):
 ```
 
 See [Running as a service](#running-as-a-service-optional) to keep them alive after reboot.
+
+## Option 3: GCP (Cloud Run + Compute Engine)
+
+This runs the exchange server on Cloud Run (scales to zero, no idle cost) and the relay on a small Compute Engine VM. Infrastructure is managed with Terraform.
+
+### Prerequisites
+
+- A GCP project with billing enabled
+- [Terraform](https://developer.hashicorp.com/terraform) >= 1.5
+- [Google Cloud SDK](https://cloud.google.com/sdk) (`gcloud`)
+- Docker Hub images already pushed (the CI workflow handles this, or run `./scripts/docker-build.sh` manually first)
+
+### Deploy
+
+```bash
+# 1. Fill in your GCP project ID
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+# Edit terraform/terraform.tfvars and set project_id
+
+# 2. Deploy
+cd terraform
+terraform init
+terraform apply
+```
+
+Terraform provisions a Cloud Run service for the exchange server and a Compute Engine VM for the relay, opens the required firewall ports, and wires up a static IP for the relay.
+
+### Get the addresses
+
+After `terraform apply` finishes:
+
+```bash
+terraform output burrow_env
+```
+
+This prints the `EXCHANGE_ADDR` and `RELAY_ADDR` values to paste into `burrow config`:
+
+```bash
+burrow config https://<cloud-run-url> <relay-ip>:9090
+```
+
+### Keeping it up to date
+
+Once you've set up the [GitHub Actions secrets](deployment.md#github-actions-cicd), every push to `main` will automatically rebuild the images, deploy the new exchange revision to Cloud Run, and reset the relay VM to boot with the new image. No manual steps needed.
 
 ## Point the CLI at your servers
 

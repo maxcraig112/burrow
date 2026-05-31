@@ -1,34 +1,28 @@
 #!/usr/bin/env bash
-# Build and push exchange + relay Docker images to Artifact Registry.
-# Run this from the repo root before `terraform apply`.
+# Build and push exchange + relay Docker images to Docker Hub.
+# Useful for manual builds outside of CI. Requires `docker login` first.
 #
 # Usage:
-#   ./scripts/docker-build.sh <project-id> [region]
+#   ./scripts/docker-build.sh <dockerhub-username>
 #
 # Example:
-#   ./scripts/docker-build.sh my-gcp-project us-central1
+#   ./scripts/docker-build.sh maximiliancraig112
 
 set -euo pipefail
 
-PROJECT_ID="${1:?Usage: $0 <project-id> [region]}"
-REGION="${2:-us-central1}"
-REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/burrow"
+USERNAME="${1:?Usage: $0 <dockerhub-username>}"
 
-echo "Configuring Docker for Artifact Registry..."
-gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-
-echo ""
 echo "Building exchange..."
-docker build -f deploy/exchange.Dockerfile -t "${REGISTRY}/exchange:latest" .
+docker build -f deploy/exchange.Dockerfile -t "${USERNAME}/burrow-exchange:latest" .
 
 echo ""
 echo "Building relay..."
-docker build -f deploy/relay.Dockerfile -t "${REGISTRY}/relay:latest" .
+docker build -f deploy/relay.Dockerfile -t "${USERNAME}/burrow-relay:latest" .
 
 echo ""
 echo "Pushing images..."
-docker push "${REGISTRY}/exchange:latest"
-docker push "${REGISTRY}/relay:latest"
+docker push "${USERNAME}/burrow-exchange:latest"
+docker push "${USERNAME}/burrow-relay:latest"
 
 echo ""
-echo "Done. You can now run: terraform -chdir=terraform apply"
+echo "Done."

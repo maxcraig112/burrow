@@ -23,29 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── GCP (Artifact Registry + Cloud Run) ──────────────────────────────
-      - id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Build and push to Artifact Registry
-        run: |
-          chmod +x scripts/docker-build.sh
-          ./scripts/docker-build.sh ${{ secrets.GCP_PROJECT_ID }} ${{ env.REGION }}
-
-      - name: Deploy exchange to Cloud Run
-        run: |
-          gcloud run deploy burrow-exchange \
-            --image="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/burrow/exchange:latest" \
-            --region="${{ env.REGION }}" \
-            --project="${{ secrets.GCP_PROJECT_ID }}" \
-            --quiet
-
-      # ── Docker Hub ───────────────────────────────────────────────────────
       - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
@@ -72,3 +49,27 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/burrow-relay:latest
+
+      # ── GCP: deploy exchange to Cloud Run, reset relay VM ────────────────
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy exchange to Cloud Run
+        run: |
+          gcloud run deploy burrow-exchange \
+            --image="maximiliancraig112/burrow-exchange:latest" \
+            --region="${{ env.REGION }}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --quiet
+
+      - name: Reset relay VM to pull updated image
+        run: |
+          gcloud compute instances reset burrow-relay \
+            --zone="${{ env.REGION }}-a" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --quiet

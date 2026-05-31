@@ -17,7 +17,7 @@ resource "google_cloud_run_v2_service" "exchange" {
     timeout = "360s"
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/burrow/exchange:latest"
+      image = "maximiliancraig112/burrow-exchange:latest"
 
       env {
         name  = "LOG_LEVEL"
@@ -44,7 +44,6 @@ resource "google_cloud_run_v2_service" "exchange" {
 
   depends_on = [
     google_project_service.apis["run.googleapis.com"],
-    google_artifact_registry_repository_iam_member.exchange_pull,
   ]
 
 }
