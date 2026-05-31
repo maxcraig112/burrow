@@ -2,18 +2,20 @@
 
 <p align="center">
   <img src="images/logo.png" width="25%" alt="Burrow logo" />
+  <br/>
+  <em>A gopher hole is called a burrow</em>
 </p>
 
-Burrow is an encrypted peer-to-peer file transfer tool. Inspired by the Python [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole), a gopher's home is a burrow, hence the name.
+Burrow is an encrypted peer-to-peer file transfer tool inspired by the Python [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole).
 
-Burrow allows you to establish a single or multi-file connection between any two machines, and securly transfer files between them. Burrow features a secure key exchange and then file transfer through a relay server, which has the benefit of ensuring your files are not publically accessible and bypassing any NAT.
+Burrow allows you to establish a single or multi-file connection between any two machines, and securly transfer files between them. Burrow features a secure key exchange and file transfer through a relay server, which has the benefit of ensuring your files are not publically accessible and can bypass NAT issues.
 
-## Features compared to magic-wormhole
+## Features\
 
 | Feature                          | magic-wormhole | Burrow                    |
 | -------------------------------- | -------------- | ------------------------- |
 | CLI send / receive               | yes            | yes                       |
-| Browser upload (`receive-web`) | no             | yes                       |
+| Persistent browser upload (`receive-web`) | no             | yes                       |
 | Language                         | Python         | Go (single static binary) |
 | Self-hostable infra              | no             | yes                       |
 
@@ -27,7 +29,7 @@ Requires Go 1.22+.
 go install github.com/maxcraig112/burrow/cmd/burrow@latest
 ```
 
-You'll need to point it at a server — see [self-hosting](docs/self-hosting.md) to run your own, then run `burrow config` once to save the address.
+You'll need to point it at a server, see [self-hosting](docs/self-hosting.md) to run your own, then run `burrow config` once to configure server addresses.
 
 ## Usage
 
@@ -39,9 +41,9 @@ burrow send photo.jpg
 
 ```text
 Code: swift-copper-leaps
-On the other machine run:
+# On the other machine run:
 
-    burrow receive swift-copper-leaps
+  burrow receive swift-copper-leaps
 
 Waiting for receiver...
 Receiver connected. Sending photo.jpg (4.2 MB)...
@@ -70,7 +72,7 @@ burrow receive-web
 
 ```text
 Code: misty-harbor-glides
-Scan the QR code or open in a browser:
+# Scan the QR code or open in a browser:
   http://your-server:8082/t/misty-harbor-glides/
 
 [QR CODE]
