@@ -14,15 +14,27 @@ import (
 // Client connects to the relay's tunnel facility, registers a session, and
 // serves incoming HTTP requests by forwarding them to a local handler.
 type Client struct {
-	relayAddr string
-	token     string
-	handler   http.Handler
-	ctrl      net.Conn
-	ctrlBr    *bufio.Reader
+	relayAddr   string
+	token       string
+	description string
+	handler     http.Handler
+	ctrl        net.Conn
+	ctrlBr      *bufio.Reader
 }
 
-func NewClient(relayAddr, token string, handler http.Handler) *Client {
-	return &Client{relayAddr: relayAddr, token: token, handler: handler}
+func NewClient(relayAddr, token, description string, handler http.Handler) *Client {
+	return &Client{
+		relayAddr:   relayAddr,
+		token:       token,
+		description: description,
+		handler:     handler,
+	}
+}
+
+// SetHandler sets the HTTP handler used to serve tunnel requests. Call before
+// Open if you need to wire the handler after creating the client.
+func (c *Client) SetHandler(h http.Handler) {
+	c.handler = h
 }
 
 // Open dials the relay, registers the tunnel, and returns the public upload URL.
@@ -33,7 +45,11 @@ func (c *Client) Open() (string, error) {
 		return "", fmt.Errorf("connect to relay: %w", err)
 	}
 
-	fmt.Fprintf(ctrl, "tunnel %s\n", c.token)
+	if c.description != "" {
+		fmt.Fprintf(ctrl, "tunnel %s %s\n", c.token, c.description)
+	} else {
+		fmt.Fprintf(ctrl, "tunnel %s\n", c.token)
+	}
 
 	ctrl.SetDeadline(time.Now().Add(15 * time.Second))
 	br := bufio.NewReader(ctrl)
@@ -52,6 +68,14 @@ func (c *Client) Open() (string, error) {
 	c.ctrl = ctrl
 	c.ctrlBr = br
 	return strings.TrimPrefix(line, "ok "), nil
+}
+
+// NotifyUploaded sends the relay a file-count update over the control connection.
+// Called by the upload handler after files are saved.
+func (c *Client) NotifyUploaded(count int) {
+	if c.ctrl != nil && count > 0 {
+		fmt.Fprintf(c.ctrl, "uploaded %d\n", count)
+	}
 }
 
 // Serve processes incoming tunnel requests until ctx is cancelled or the relay

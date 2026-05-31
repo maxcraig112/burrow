@@ -14,13 +14,23 @@
     }
     .card {
       background: #1a1d27; border: 1px solid #2d3148; border-radius: 16px;
-      padding: 2rem; width: 100%; max-width: 440px;
+      padding: 2.5rem; width: 100%; max-width: 620px;
     }
     .logo { font-size: 1.5rem; font-weight: 700; color: #a78bfa; margin-bottom: .2rem; }
-    .sub  { font-size: .875rem; color: #64748b; margin-bottom: 1.75rem; }
+    .sub  { font-size: .875rem; color: #64748b; margin-bottom: 1.25rem; }
+    .session-info {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: .3rem .75rem; align-items: baseline;
+      background: #13151f; border-radius: 8px;
+      padding: .75rem 1rem; margin-bottom: 1.5rem;
+      font-size: .82rem;
+    }
+    .info-label { color: #475569; white-space: nowrap; }
+    .info-value { color: #94a3b8; font-family: monospace; word-break: break-all; }
+    .info-plain { font-family: inherit; font-style: italic; }
     .drop {
       border: 2px dashed #3b4060; border-radius: 10px;
-      padding: 2.5rem 1.5rem; text-align: center;
+      padding: 3.5rem 1.5rem; text-align: center;
       transition: border-color .15s, background .15s; margin-bottom: .75rem;
     }
     .drop.over { border-color: #a78bfa; background: rgba(167,139,250,.07); }
@@ -57,6 +67,9 @@
     .status { font-size: .875rem; color: #64748b; min-height: 1.3em; text-align: center; }
     .ok  { color: #34d399; }
     .err { color: #f87171; }
+    .all-sessions { margin-top: 1.25rem; text-align: center; }
+    .all-sessions a { font-size: .8rem; color: #475569; text-decoration: none; }
+    .all-sessions a:hover { color: #94a3b8; }
     input[type=file] { display: none; }
   </style>
 </head>
@@ -64,6 +77,17 @@
 <div class="card">
   <div class="logo">Burrow</div>
   <div class="sub">Send files to the receiver</div>
+
+  <div class="session-info">
+    <span class="info-label">Session</span>
+    <span class="info-value">{{.Nameplate}}</span>
+    {{if .Description}}
+    <span class="info-label">Note</span>
+    <span class="info-value info-plain">{{.Description}}</span>
+    {{end}}
+    <span class="info-label">Saving to</span>
+    <span class="info-value info-plain">{{.Folder}}</span>
+  </div>
 
   <div class="drop" id="drop">
     <div class="drop-icon">📂</div>
@@ -78,6 +102,7 @@
   </div>
 
   <div class="status" id="status"></div>
+  <div class="all-sessions"><a href="/active">View all active sessions →</a></div>
   <input type="file" id="file-input" multiple accept="*/*">
 </div>
 <script>

@@ -11,11 +11,12 @@ import (
 	"github.com/maxcraig112/burrow/internal/pake"
 )
 
-// ExchangeAddr and RelayAddr must be set before calling any client functions.
-// Use `burrow config` to save them, or set EXCHANGE_ADDR / RELAY_ADDR env vars.
+// ExchangeAddr, RelayAddr, and TunnelAddr must be set before calling client
+// functions. Use `burrow config` to save them, or set the corresponding env vars.
 var (
 	ExchangeAddr = ""
 	RelayAddr    = ""
+	TunnelAddr   = "" // base HTTP URL of the tunnel server, e.g. http://host:8082
 )
 
 type wsMsg struct {

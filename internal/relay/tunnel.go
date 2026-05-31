@@ -1,10 +1,14 @@
 package relay
 
 import (
+	"bufio"
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -12,19 +16,40 @@ import (
 	"github.com/rs/zerolog"
 )
 
+//go:embed active.html
+var activeHTML string
+
 // TunnelHub manages web-upload tunnels. A receiver registers a persistent
 // control connection; the hub's HTTP server proxies browser requests through
 // that connection to the receiver.
 type TunnelHub struct {
 	mu      sync.Mutex
 	entries map[string]*tunnelEntry
-	baseURL string // e.g. "http://relay-host:8082"
+	baseURL string
 	logger  zerolog.Logger
 }
 
 type tunnelEntry struct {
-	ctrl net.Conn
-	data chan net.Conn
+	ctrl        net.Conn
+	data        chan net.Conn
+	description string
+	startedAt   time.Time
+	receiverIP  string
+
+	mu             sync.Mutex
+	filesRecv      int
+	lastUploaderIP string
+}
+
+// SessionInfo is the JSON representation of an active tunnel session.
+type SessionInfo struct {
+	Nameplate      string    `json:"nameplate"`
+	Description    string    `json:"description,omitempty"`
+	URL            string    `json:"url"`
+	StartedAt      time.Time `json:"started_at"`
+	FilesReceived  int       `json:"files_received"`
+	ReceiverIP     string    `json:"receiver_ip"`
+	LastUploaderIP string    `json:"last_uploader_ip,omitempty"`
 }
 
 func NewTunnelHub(baseURL string, logger zerolog.Logger) *TunnelHub {
@@ -35,12 +60,16 @@ func NewTunnelHub(baseURL string, logger zerolog.Logger) *TunnelHub {
 	}
 }
 
-// register handles a "tunnel TOKEN" control connection. Blocks until the
-// receiver disconnects.
-func (h *TunnelHub) register(ctrl net.Conn, token string) {
+// register handles a "tunnel TOKEN [DESCRIPTION]" control connection.
+// Blocks until the receiver disconnects.
+func (h *TunnelHub) register(ctrl net.Conn, token, description string) {
+	ip, _, _ := net.SplitHostPort(ctrl.RemoteAddr().String())
 	entry := &tunnelEntry{
-		ctrl: ctrl,
-		data: make(chan net.Conn, 4),
+		ctrl:        ctrl,
+		data:        make(chan net.Conn, 4),
+		description: description,
+		startedAt:   time.Now().UTC(),
+		receiverIP:  ip,
 	}
 	h.mu.Lock()
 	h.entries[token] = entry
@@ -50,9 +79,24 @@ func (h *TunnelHub) register(ctrl net.Conn, token string) {
 	fmt.Fprintf(ctrl, "ok %s\n", url)
 	h.logger.Info().Str("token", abbrev(token)).Str("url", url).Msg("web tunnel registered")
 
-	// Drain the control connection; it carries no data from the receiver —
-	// keeping it open is the liveness signal.
-	io.Copy(io.Discard, ctrl)
+	// Read upload-count notifications from the receiver ("uploaded N\n").
+	// ServeHTTP writes "request\n" concurrently — net.Conn is safe for that.
+	br := bufio.NewReader(ctrl)
+	for {
+		line, err := br.ReadString('\n')
+		if err != nil {
+			break
+		}
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "uploaded ") {
+			n, err := strconv.Atoi(strings.TrimPrefix(line, "uploaded "))
+			if err == nil && n > 0 {
+				entry.mu.Lock()
+				entry.filesRecv += n
+				entry.mu.Unlock()
+			}
+		}
+	}
 
 	h.mu.Lock()
 	delete(h.entries, token)
@@ -85,6 +129,16 @@ func (h *TunnelHub) acceptData(conn net.Conn, token string) {
 // ServeHTTP proxies an incoming browser request through the tunnel to the
 // receiver. Path format: /t/TOKEN/rest
 func (h *TunnelHub) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	switch req.URL.Path {
+	case "/active":
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, activeHTML)
+		return
+	case "/api/sessions":
+		h.serveSessionsAPI(w)
+		return
+	}
+
 	token, subpath, ok := parseTunnelPath(req.URL.Path)
 	if !ok {
 		http.NotFound(w, req)
@@ -97,6 +151,14 @@ func (h *TunnelHub) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		http.NotFound(w, req)
 		return
+	}
+
+	// Record the uploader IP on upload requests before hijacking.
+	if req.Method == http.MethodPost && subpath == "/upload" {
+		ip, _, _ := net.SplitHostPort(req.RemoteAddr)
+		entry.mu.Lock()
+		entry.lastUploaderIP = ip
+		entry.mu.Unlock()
 	}
 
 	// Tell the receiver a request is incoming.
@@ -145,6 +207,29 @@ func (h *TunnelHub) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	// Stream the response from the receiver back to the browser.
 	io.Copy(browserConn, dataConn)
+}
+
+func (h *TunnelHub) serveSessionsAPI(w http.ResponseWriter) {
+	h.mu.Lock()
+	sessions := make([]SessionInfo, 0, len(h.entries))
+	for token, e := range h.entries {
+		e.mu.Lock()
+		sessions = append(sessions, SessionInfo{
+			Nameplate:      token,
+			Description:    e.description,
+			URL:            h.baseURL + "/t/" + token + "/",
+			StartedAt:      e.startedAt,
+			FilesReceived:  e.filesRecv,
+			ReceiverIP:     e.receiverIP,
+			LastUploaderIP: e.lastUploaderIP,
+		})
+		e.mu.Unlock()
+	}
+	h.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(map[string]any{"sessions": sessions})
 }
 
 // parseTunnelPath extracts the token and sub-path from /t/TOKEN/rest.

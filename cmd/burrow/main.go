@@ -38,6 +38,9 @@ func init() {
 	if addr := get("RELAY_ADDR"); addr != "" {
 		client.RelayAddr = addr
 	}
+	if addr := get("TUNNEL_ADDR"); addr != "" {
+		client.TunnelAddr = addr
+	}
 }
 
 func userConfigPath() (string, error) {
@@ -71,7 +74,9 @@ func main() {
 		cmdReceive(os.Args[2])
 	case "receive-web":
 		requireConfig()
-		cmdReceiveWeb()
+		cmdReceiveWeb(os.Args[2:])
+	case "active":
+		cmdActive()
 	case "config":
 		cmdConfig(os.Args[2:])
 	default:
@@ -195,11 +200,12 @@ func usage() {
 	fmt.Println(`burrow - encrypted peer-to-peer file transfer
 
 Usage:
-  burrow send <file>               Send a file and display the receive code
-  burrow receive <code>            Receive a file using the code from the sender
-  burrow receive-web               Host a web upload page and display a QR code
-  burrow config                    Show current server addresses and config path
-  burrow config <exchange> <relay> Save server addresses to user config`)
+  burrow send <file>                    Send a file and display the receive code
+  burrow receive <code>                 Receive a file using the code from the sender
+  burrow receive-web [-d description]   Host a web upload page and display a QR code
+  burrow active                         List active receive-web sessions on your relay
+  burrow config                         Show current server addresses and config path
+  burrow config <exchange> <relay>      Save server addresses to user config`)
 }
 
 func fatalf(format string, args ...any) {
