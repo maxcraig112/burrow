@@ -1,0 +1,19 @@
+services:
+  exchange:
+    image: maximiliancraig112/burrow-exchange:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      LOG_LEVEL: info
+
+  relay:
+    image: maximiliancraig112/burrow-relay:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+      - "8082:8082"
+    environment:
+      LOG_LEVEL: info
+      # Set this to your server's IP or hostname so QR codes contain the right URL.
+      TUNNEL_PUBLIC_URL: http://YOUR_SERVER_IP:8082

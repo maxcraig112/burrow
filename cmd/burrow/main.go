@@ -60,14 +60,17 @@ func main() {
 			fmt.Fprintln(os.Stderr, "usage: burrow send <file>")
 			os.Exit(1)
 		}
+		requireConfig()
 		cmdSend(os.Args[2])
 	case "receive":
 		if len(os.Args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: burrow receive <code>")
 			os.Exit(1)
 		}
+		requireConfig()
 		cmdReceive(os.Args[2])
 	case "receive-web":
+		requireConfig()
 		cmdReceiveWeb()
 	case "config":
 		cmdConfig(os.Args[2:])
@@ -146,6 +149,16 @@ func cmdReceive(code string) {
 	bar.Done()
 	fmt.Printf("Saved to %s\n", savedPath)
 	fmt.Println("Done!")
+}
+
+func requireConfig() {
+	if client.ExchangeAddr == "" || client.RelayAddr == "" {
+		fmt.Fprintln(os.Stderr, "No server configured. Run:")
+		fmt.Fprintln(os.Stderr, "  burrow config <exchange-addr> <relay-addr>")
+		fmt.Fprintln(os.Stderr, "Example:")
+		fmt.Fprintln(os.Stderr, "  burrow config http://100.x.x.x:8080 100.x.x.x:9090")
+		os.Exit(1)
+	}
 }
 
 func cmdConfig(args []string) {

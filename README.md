@@ -27,7 +27,7 @@ Requires Go 1.22+.
 go install github.com/maxcraig112/burrow/cmd/burrow@latest
 ```
 
-Points at the hosted servers by default, no setup needed.
+You'll need to point it at a server — see [self-hosting](docs/self-hosting.md) to run your own, then run `burrow config` once to save the address.
 
 ## Usage
 
@@ -71,7 +71,7 @@ burrow receive-web
 ```text
 Code: misty-harbor-glides
 Scan the QR code or open in a browser:
-  http://34.171.119.185:8082/t/misty-harbor-glides/
+  http://your-server:8082/t/misty-harbor-glides/
 
 [QR CODE]
 
