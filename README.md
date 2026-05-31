@@ -6,22 +6,25 @@
   <em>A gopher hole is called a burrow</em>
 </p>
 
-Burrow is an encrypted peer-to-peer file transfer tool inspired by the Python [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole).
-
-<p align="center">
-  <img src="images/demo.gif" alt="Burrow demo" width="80%" />
-</p>
+Burrow is an encrypted peer-to-peer file transfer tool inspired by [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole).
 
 Burrow allows you to establish a single or multi-file connection between any two machines, and securly transfer files between them. Burrow features a secure key exchange and file transfer through a relay server, which has the benefit of ensuring your files are not publically accessible and can bypass NAT issues.
 
+<p align="center">
+  <img src="images/demo.gif" alt="Burrow demo" width="80%" />
+  <br/>
+  <em>Demo of burror receive-web</em>
+</p>
+
+
 ## Features
 
-| Feature                          | magic-wormhole | Burrow                    |
-| -------------------------------- | -------------- | ------------------------- |
-| CLI send / receive               | yes            | yes                       |
+| Feature                                     | magic-wormhole | Burrow                    |
+| ------------------------------------------- | -------------- | ------------------------- |
+| CLI send / receive                          | yes            | yes                       |
 | Persistent browser upload (`receive-web`) | no             | yes                       |
-| Language                         | Python         | Go (single static binary) |
-| Self-hostable infra              | no             | yes                       |
+| Language                                    | Python         | Go (single static binary) |
+| Self-hostable infra                         | no             | yes                       |
 
 The main difference that burrow has over magic-wormhole is the ability for the receiver to initiate the file transfer. A long lived session can be established, which allows multiple senders to connect to uploading multiple files through a dedicated Web UI.
 
