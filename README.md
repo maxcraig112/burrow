@@ -8,9 +8,13 @@
 
 Burrow is an encrypted peer-to-peer file transfer tool inspired by the Python [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole).
 
+<p align="center">
+  <img src="images/demo.gif" alt="Burrow demo" width="80%" />
+</p>
+
 Burrow allows you to establish a single or multi-file connection between any two machines, and securly transfer files between them. Burrow features a secure key exchange and file transfer through a relay server, which has the benefit of ensuring your files are not publically accessible and can bypass NAT issues.
 
-## Features\
+## Features
 
 | Feature                          | magic-wormhole | Burrow                    |
 | -------------------------------- | -------------- | ------------------------- |
@@ -20,6 +24,13 @@ Burrow allows you to establish a single or multi-file connection between any two
 | Self-hostable infra              | no             | yes                       |
 
 The main difference that burrow has over magic-wormhole is the ability for the receiver to initiate the file transfer. A long lived session can be established, which allows multiple senders to connect to uploading multiple files through a dedicated Web UI.
+
+## Use cases
+
+- **Phone to computer** - scan the QR code from `receive-web` and upload straight from your camera roll
+- **Computer to computer** - transfer any file with a short code, no accounts or cloud needed
+- **Collecting files from multiple people** - `receive-web` stays open until you close it
+- **Home server drop box** - leave `receive-web` running, anyone on your network can drop files
 
 ## Install
 

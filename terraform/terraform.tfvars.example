@@ -1,0 +1,12 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# cp terraform.tfvars.example terraform.tfvars
+
+# Required
+project_id = "your-gcp-project-id"
+
+# Optional overrides (defaults shown)
+# region             = "us-central1"
+# zone               = "us-central1-a"
+# relay_machine_type = "e2-micro"
+# log_level          = "info"
+# github_repo        = "maxcraig112/burrow"

@@ -39,11 +39,10 @@ Then start them (each in its own terminal, or use systemd/screen/tmux):
 ./relay-linux-amd64
 ```
 
-See [Running as a service](#running-as-a-service-optional) to keep them alive after reboot.
 
 ## Option 3: GCP (Cloud Run + Compute Engine)
 
-This runs the exchange server on Cloud Run (scales to zero, no idle cost) and the relay on a small Compute Engine VM. Infrastructure is managed with Terraform.
+This runs the exchange server on Cloud Run and the relay on a small Compute Engine VM. Infrastructure is managed with Terraform.
 
 ### Prerequisites
 
@@ -81,10 +80,6 @@ This prints the `EXCHANGE_ADDR` and `RELAY_ADDR` values to paste into `burrow co
 burrow config https://<cloud-run-url> <relay-ip>:9090
 ```
 
-### Keeping it up to date
-
-Once you've set up the [GitHub Actions secrets](deployment.md#github-actions-cicd), every push to `main` will automatically rebuild the images, deploy the new exchange revision to Cloud Run, and reset the relay VM to boot with the new image. No manual steps needed.
-
 ## Point the CLI at your servers
 
 Run this once on each machine that will use Burrow:
@@ -120,13 +115,3 @@ burrow config http://100.x.x.x:8080 100.x.x.x:9090
 ```
 
 Use the same Tailscale IP in `TUNNEL_PUBLIC_URL` in `docker-compose.yml` (or your `.env`).
-
-### Open ports
-
-If not using Tailscale, open the ports in your firewall. On UFW:
-
-```bash
-ufw allow 8080/tcp
-ufw allow 9090/tcp
-ufw allow 8082/tcp
-```
