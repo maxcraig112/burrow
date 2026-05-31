@@ -31,12 +31,19 @@ Then start them (each in its own terminal, or use systemd/screen/tmux):
 
 ## Point the CLI at your servers
 
-On each machine using Burrow, create a `.env` in the directory you run `burrow` from:
+Run this once on each machine that will use Burrow:
 
 ```bash
-EXCHANGE_ADDR=http://<your-server-ip>:8080
-RELAY_ADDR=<your-server-ip>:9090
+burrow config http://<your-server-ip>:8080 <your-server-ip>:9090
 ```
+
+This saves the addresses to `~/.config/burrow/config` (Windows: `%AppData%\burrow\config`) and they're picked up automatically from then on. Check the current config any time with:
+
+```bash
+burrow config
+```
+
+A local `.env` in the working directory always takes priority over the saved config if you need to override temporarily.
 
 ## Networking
 
@@ -50,18 +57,17 @@ The relay needs two ports reachable by all clients:
 
 ### Option 1: Tailscale (recommended)
 
-If everyone who uses your Burrow setup is on the same [Tailscale](https://tailscale.com) network, you don't need to open any ports at all. Just install Tailscale on the server, get its Tailscale IP, and use that in your `.env`:
+If everyone who uses your Burrow setup is on the same [Tailscale](https://tailscale.com) network, you don't need to open any ports at all. Install Tailscale on the server, get its Tailscale IP, and use that when running `burrow config`:
 
 ```bash
-EXCHANGE_ADDR=http://100.x.x.x:8080
-RELAY_ADDR=100.x.x.x:9090
+burrow config http://100.x.x.x:8080 100.x.x.x:9090
 ```
 
-Tailscale handles the encrypted tunneling between devices, so the servers don't need to be exposed to the internet.
+Tailscale handles the encrypted tunneling between devices so the servers don't need to be exposed to the internet.
 
 ### Option 2: Open ports
 
-If you want to use Burrow without Tailscale, open the three ports above in your firewall/router. On UFW:
+Open the three ports in your firewall/router. On UFW:
 
 ```bash
 ufw allow 8080/tcp
@@ -69,29 +75,4 @@ ufw allow 9090/tcp
 ufw allow 8082/tcp
 ```
 
-Then use your server's public IP or hostname in the `.env`.
-
-## Running as a service (optional)
-
-To keep the servers running after logout, create systemd units. Example for the exchange server at `/etc/systemd/system/burrow-exchange.service`:
-
-```ini
-[Unit]
-Description=Burrow exchange server
-After=network.target
-
-[Service]
-ExecStart=/opt/burrow/exchange-linux-amd64
-WorkingDirectory=/opt/burrow
-Restart=always
-Environment=LOG_LEVEL=info
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Do the same for `burrow-relay.service`, then:
-
-```bash
-systemctl enable --now burrow-exchange burrow-relay
-```
+Then use your server's public IP or hostname when running `burrow config`.

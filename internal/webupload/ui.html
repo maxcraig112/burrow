@@ -27,9 +27,22 @@
     .drop-icon { font-size: 2.25rem; margin-bottom: .5rem; }
     .drop-text { font-size: .9rem; color: #94a3b8; }
     .file-list {
-      font-size: .8rem; color: #64748b; min-height: 1.2em;
-      margin-bottom: 1rem; word-break: break-all; line-height: 1.6;
+      margin-bottom: 1rem; max-height: 200px; overflow-y: auto;
     }
+    .file-item {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .35rem .25rem; border-bottom: 1px solid #23263a;
+      font-size: .8rem; color: #94a3b8;
+    }
+    .file-item:last-child { border-bottom: none; }
+    .file-info { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { color: #64748b; }
+    .remove-btn {
+      flex-shrink: 0; background: none; border: none; color: #475569;
+      cursor: pointer; font-size: .75rem; padding: .15rem .35rem;
+      border-radius: 4px; transition: color .1s, background .1s; line-height: 1;
+    }
+    .remove-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
     .btn-row { display: flex; gap: .75rem; margin-bottom: .75rem; }
     .btn {
       flex: 1; padding: .875rem; border: none; border-radius: 8px;
@@ -84,25 +97,51 @@ function fmtBytes(n) {
   return n.toFixed(1) + ' ' + u[i];
 }
 
-function setChosen(files) {
-  chosen = Array.from(files);
-  fileList.textContent = chosen.map(f => f.name + ' (' + fmtBytes(f.size) + ')').join('\n');
-  uploadBtn.disabled = chosen.length === 0;
+function addFiles(files) {
+  for (const f of Array.from(files)) {
+    if (!chosen.some(c => c.name === f.name && c.size === f.size)) {
+      chosen.push(f);
+    }
+  }
+  fileInput.value = ''; // reset so the same file can be re-added after removal
+  renderList();
   status.textContent = ''; status.className = 'status';
 }
 
+function removeFile(i) {
+  chosen.splice(i, 1);
+  renderList();
+}
+
+function renderList() {
+  fileList.innerHTML = '';
+  chosen.forEach((f, i) => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    const info = document.createElement('span');
+    info.className = 'file-info';
+    info.title = f.name;
+    info.innerHTML = f.name + ' <span class="file-size">(' + fmtBytes(f.size) + ')</span>';
+    const rm = document.createElement('button');
+    rm.className = 'remove-btn'; rm.type = 'button'; rm.title = 'Remove'; rm.textContent = '✕';
+    rm.addEventListener('click', () => removeFile(i));
+    item.appendChild(info); item.appendChild(rm);
+    fileList.appendChild(item);
+  });
+  uploadBtn.disabled = chosen.length === 0;
+}
+
 browseBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => setChosen(fileInput.files));
+fileInput.addEventListener('change', () => addFiles(fileInput.files));
 drop.addEventListener('dragover',  e => { e.preventDefault(); drop.classList.add('over'); });
 drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); setChosen(e.dataTransfer.files); });
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); });
 drop.addEventListener('click', e => { if (e.target === drop || e.target.classList.contains('drop-icon') || e.target.classList.contains('drop-text')) fileInput.click(); });
 
 uploadBtn.addEventListener('click', async () => {
   if (!chosen.length) return;
   const files = [...chosen];
-  chosen = []; fileList.textContent = ''; fileInput.value = '';
-  uploadBtn.disabled = true;
+  chosen = []; renderList();
 
   for (const file of files) {
     status.className = 'status';

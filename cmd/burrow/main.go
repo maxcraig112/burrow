@@ -12,13 +12,40 @@ import (
 )
 
 func init() {
-	godotenv.Load(".env") // missing file is not an error
-	if addr := os.Getenv("EXCHANGE_ADDR"); addr != "" {
+	// Priority (lowest to highest): user config < local .env < actual env var.
+	cfg := make(map[string]string)
+	if p, err := userConfigPath(); err == nil {
+		if m, err := godotenv.Read(p); err == nil {
+			for k, v := range m {
+				cfg[k] = v
+			}
+		}
+	}
+	if m, err := godotenv.Read(".env"); err == nil {
+		for k, v := range m {
+			cfg[k] = v
+		}
+	}
+	get := func(key string) string {
+		if v := os.Getenv(key); v != "" {
+			return v
+		}
+		return cfg[key]
+	}
+	if addr := get("EXCHANGE_ADDR"); addr != "" {
 		client.ExchangeAddr = addr
 	}
-	if addr := os.Getenv("RELAY_ADDR"); addr != "" {
+	if addr := get("RELAY_ADDR"); addr != "" {
 		client.RelayAddr = addr
 	}
+}
+
+func userConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "burrow", "config"), nil
 }
 
 func main() {
@@ -42,6 +69,8 @@ func main() {
 		cmdReceive(os.Args[2])
 	case "receive-web":
 		cmdReceiveWeb()
+	case "config":
+		cmdConfig(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", os.Args[1])
 		usage()
@@ -119,13 +148,45 @@ func cmdReceive(code string) {
 	fmt.Println("Done!")
 }
 
+func cmdConfig(args []string) {
+	if len(args) == 0 {
+		p, err := userConfigPath()
+		if err != nil {
+			fatalf("could not locate config dir: %v", err)
+		}
+		fmt.Printf("Exchange : %s\n", client.ExchangeAddr)
+		fmt.Printf("Relay    : %s\n", client.RelayAddr)
+		fmt.Printf("Config   : %s\n", p)
+		return
+	}
+	if len(args) != 2 {
+		fmt.Fprintln(os.Stderr, "usage: burrow config <exchange-addr> <relay-addr>")
+		fmt.Fprintln(os.Stderr, "example: burrow config http://100.x.x.x:8080 100.x.x.x:9090")
+		os.Exit(1)
+	}
+	p, err := userConfigPath()
+	if err != nil {
+		fatalf("could not locate config dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
+		fatalf("could not create config dir: %v", err)
+	}
+	content := fmt.Sprintf("EXCHANGE_ADDR=%s\nRELAY_ADDR=%s\n", args[0], args[1])
+	if err := os.WriteFile(p, []byte(content), 0600); err != nil {
+		fatalf("could not write config: %v", err)
+	}
+	fmt.Printf("Saved config to %s\n", p)
+}
+
 func usage() {
 	fmt.Println(`burrow - encrypted peer-to-peer file transfer
 
 Usage:
-  burrow send <file>      Send a file and display the receive code
-  burrow receive <code>   Receive a file using the code from the sender
-  burrow receive-web      Host a web upload page and display a QR code`)
+  burrow send <file>               Send a file and display the receive code
+  burrow receive <code>            Receive a file using the code from the sender
+  burrow receive-web               Host a web upload page and display a QR code
+  burrow config                    Show current server addresses and config path
+  burrow config <exchange> <relay> Save server addresses to user config`)
 }
 
 func fatalf(format string, args ...any) {
