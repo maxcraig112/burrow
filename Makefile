@@ -1,8 +1,8 @@
-.PHONY: all exchange relay wormhole clean
+.PHONY: all exchange relay burrow clean
 
 BIN := bin
 
-all: exchange relay wormhole
+all: exchange relay burrow
 
 $(BIN):
 	mkdir -p $@
@@ -13,8 +13,8 @@ exchange: | $(BIN)
 relay: | $(BIN)
 	go build -o $(BIN)/ ./cmd/relay
 
-wormhole: | $(BIN)
-	go build -o $(BIN)/ ./cmd/wormhole
+burrow: | $(BIN)
+	go build -o $(BIN)/ ./cmd/burrow
 
 clean:
 	rm -rf $(BIN)

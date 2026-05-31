@@ -14,7 +14,7 @@ make
 # Or individually
 make exchange
 make relay
-make wormhole
+make burrow
 ```
 
 ## Run servers locally
@@ -32,7 +32,7 @@ Both servers load `.env` from the working directory. The repo ships with default
 Then run the CLI against them:
 
 ```bash
-./bin/wormhole send photo.jpg
+./bin/burrow send photo.jpg
 ```
 
 ## Configuration
@@ -42,8 +42,8 @@ All binaries read environment variables from `.env`.
 | Variable | Used by | Default | Description |
 | --- | --- | --- | --- |
 | `LOG_LEVEL` | exchange, relay | `info` | `debug` · `info` · `warn` · `error` |
-| `EXCHANGE_ADDR` | wormhole | hosted URL | Exchange server address. Accepts `host:port` or a full `https://` URL. |
-| `RELAY_ADDR` | wormhole | hosted IP:port | Relay TCP address for file transfer |
+| `EXCHANGE_ADDR` | burrow | hosted URL | Exchange server address. Accepts `host:port` or a full `https://` URL. |
+| `RELAY_ADDR` | burrow | hosted IP:port | Relay TCP address for file transfer |
 | `TUNNEL_BIND` | relay | `:8082` | Address the HTTP tunnel server binds to |
 | `TUNNEL_PUBLIC_URL` | relay | `http://localhost:8082` | Public base URL embedded in QR codes |
 
@@ -53,9 +53,9 @@ All binaries read environment variables from `.env`.
 cmd/
   exchange/     HTTP + WebSocket exchange server
   relay/        TCP file relay + HTTP web-upload tunnel
-  wormhole/     CLI: send, receive, receive-web
+  burrow/       CLI: send, receive, receive-web
 internal/
-  client/       Wormhole client (exchange protocol, file transfer)
+  client/       Burrow client (exchange protocol, file transfer)
   exchange/     Session management, PAKE coordination
   nameplate/    Random human-readable code generation
   pake/         X25519 ECDH + HKDF key derivation

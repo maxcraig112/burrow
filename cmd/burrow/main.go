@@ -30,13 +30,13 @@ func main() {
 	switch os.Args[1] {
 	case "send":
 		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: wormhole send <file>")
+			fmt.Fprintln(os.Stderr, "usage: burrow send <file>")
 			os.Exit(1)
 		}
 		cmdSend(os.Args[2])
 	case "receive":
 		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: wormhole receive <code>")
+			fmt.Fprintln(os.Stderr, "usage: burrow receive <code>")
 			os.Exit(1)
 		}
 		cmdReceive(os.Args[2])
@@ -65,7 +65,7 @@ func cmdSend(filePath string) {
 	}
 
 	fmt.Printf("\nCode: %s\n", sess.Nameplate)
-	fmt.Printf("On the other machine run:\n\n    wormhole receive %s\n\n", sess.Nameplate)
+	fmt.Printf("On the other machine run:\n\n    burrow receive %s\n\n", sess.Nameplate)
 	fmt.Println("Waiting for receiver...")
 
 	keys, err := sess.WaitForReceiver()
@@ -120,12 +120,12 @@ func cmdReceive(code string) {
 }
 
 func usage() {
-	fmt.Println(`wormhole - encrypted peer-to-peer file transfer
+	fmt.Println(`burrow - encrypted peer-to-peer file transfer
 
 Usage:
-  wormhole send <file>      Send a file and display the receive code
-  wormhole receive <code>   Receive a file using the code from the sender
-  wormhole receive-web      Host a web upload page and display a QR code`)
+  burrow send <file>      Send a file and display the receive code
+  burrow receive <code>   Receive a file using the code from the sender
+  burrow receive-web      Host a web upload page and display a QR code`)
 }
 
 func fatalf(format string, args ...any) {

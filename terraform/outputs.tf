@@ -18,8 +18,8 @@ output "tunnel_public_url" {
   value       = "http://${google_compute_address.relay.address}:8082"
 }
 
-output "wormhole_env" {
-  description = "Ready-to-paste .env snippet for the wormhole CLI"
+output "burrow_env" {
+  description = "Ready-to-paste .env snippet for the burrow CLI"
   value       = <<-EOF
     EXCHANGE_ADDR=${google_cloud_run_v2_service.exchange.uri}
     RELAY_ADDR=${google_compute_address.relay.address}:9090

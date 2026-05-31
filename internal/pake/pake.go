@@ -64,11 +64,11 @@ func DeriveKeys(priv *ecdh.PrivateKey, peerPubBase64, nameplate string) (*Derive
 		return key, nil
 	}
 
-	fileKey, err := derive("wormhole-file-key-v1")
+	fileKey, err := derive("burrow-file-key-v1")
 	if err != nil {
 		return nil, fmt.Errorf("derive file key: %w", err)
 	}
-	relayTokenBytes, err := derive("wormhole-relay-token-v1")
+	relayTokenBytes, err := derive("burrow-relay-token-v1")
 	if err != nil {
 		return nil, fmt.Errorf("derive relay token: %w", err)
 	}

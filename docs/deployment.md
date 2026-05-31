@@ -53,7 +53,7 @@ cd terraform && terraform apply
 After apply, get the `.env` values for the CLI:
 
 ```bash
-terraform output wormhole_env
+terraform output burrow_env
 ```
 
 ## GitHub Actions CI/CD

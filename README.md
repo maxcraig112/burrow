@@ -6,9 +6,9 @@
 
 Burrow is an encrypted peer-to-peer file transfer tool. Inspired by the Python [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole), a gopher's home is a burrow, hence the name.
 
-You share a short code between two machines. The actual file data never touches any server in plaintext.
+Burrow allows you to establish a single or multi-file connection between any two machines, and securly transfer files between them. Burrow features a secure key exchange and then file transfer through a relay server, which has the benefit of ensuring your files are not publically accessible and bypassing any NAT.
 
-## What Burrow adds over magic-wormhole
+## Features compared to magic-wormhole
 
 | Feature                          | magic-wormhole | Burrow                    |
 | -------------------------------- | -------------- | ------------------------- |
@@ -17,14 +17,14 @@ You share a short code between two machines. The actual file data never touches 
 | Language                         | Python         | Go (single static binary) |
 | Self-hostable infra              | no             | yes                       |
 
-`receive-web` lets the receiver generate a QR code. Whoever scans it gets a drag-and-drop upload page in their browser.
+The main difference that burrow has over magic-wormhole is the ability for the receiver to initiate the file transfer. A long lived session can be established, which allows multiple senders to connect to uploading multiple files through a dedicated Web UI.
 
 ## Install
 
 Requires Go 1.22+.
 
 ```bash
-go install github.com/maxcraig112/burrow/cmd/wormhole@latest
+go install github.com/maxcraig112/burrow/cmd/burrow@latest
 ```
 
 Points at the hosted servers by default, no setup needed.
@@ -34,14 +34,14 @@ Points at the hosted servers by default, no setup needed.
 ### Send a file
 
 ```bash
-wormhole send photo.jpg
+burrow send photo.jpg
 ```
 
 ```text
 Code: swift-copper-leaps
 On the other machine run:
 
-    wormhole receive swift-copper-leaps
+    burrow receive swift-copper-leaps
 
 Waiting for receiver...
 Receiver connected. Sending photo.jpg (4.2 MB)...
@@ -52,7 +52,7 @@ Done!
 ### Receive a file
 
 ```bash
-wormhole receive swift-copper-leaps
+burrow receive swift-copper-leaps
 ```
 
 ```text
@@ -65,7 +65,7 @@ Done!
 ### Receive via browser
 
 ```bash
-wormhole receive-web
+burrow receive-web
 ```
 
 ```text
@@ -90,4 +90,5 @@ Files are saved to the current working directory. Accepts multiple uploads until
 ## Docs
 
 - [Building from source &amp; local dev](docs/development.md)
+- [Self-hosting on a home server](docs/self-hosting.md)
 - [Deployment (GCP / Terraform)](docs/deployment.md)
