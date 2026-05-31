@@ -13,7 +13,7 @@ Burrow allows you to establish a single or multi-file connection between any two
 <p align="center">
   <img src="images/demo.gif" alt="Burrow demo" width="80%" />
   <br/>
-  <em>Demo of burror receive-web</em>
+  <em>Demo of burrow receive-web</em>
 </p>
 
 
