@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"gopherhole/internal/progress"
+	"github.com/maxcraig112/burrow/internal/progress"
 )
 
 //go:embed ui.html

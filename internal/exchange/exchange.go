@@ -3,9 +3,9 @@ package exchange
 import (
 	"time"
 
+	"github.com/maxcraig112/burrow/internal/nameplate"
 	cache "github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog"
-	"gopherhole/internal/nameplate"
 )
 
 // Exchange manages the lifecycle of pending send/receive sessions.

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/maxcraig112/burrow/internal/exchange"
+	"github.com/maxcraig112/burrow/internal/transport"
 	"github.com/rs/zerolog"
-	"gopherhole/internal/exchange"
-	"gopherhole/internal/transport"
 )
 
 const ttl = 5 * time.Minute
@@ -37,8 +37,12 @@ func main() {
 	mux.HandleFunc("GET /send", h.Send)
 	mux.HandleFunc("POST /receive", h.Receive)
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + port,
 		Handler: mux,
 		// ReadTimeout covers the initial HTTP upgrade; WriteTimeout must
 		// accommodate the full WebSocket session lifetime.

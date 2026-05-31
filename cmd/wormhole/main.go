@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopherhole/internal/client"
-	"gopherhole/internal/progress"
+	"github.com/maxcraig112/burrow/internal/client"
+	"github.com/maxcraig112/burrow/internal/progress"
 
 	"github.com/joho/godotenv"
 )

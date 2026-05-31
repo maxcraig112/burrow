@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"gopherhole/internal/exchange"
+	"github.com/maxcraig112/burrow/internal/exchange"
 )
 
 // Send upgrades the connection to WebSocket, issues a nameplate, exchanges
@@ -17,8 +17,8 @@ import (
 //  2. Receive {"type":"nameplate","nameplate":"<code>"}.
 //  3. Send {"type":"pake","body":"<base64 X25519 pubkey>"}.
 //  4. Wait.
-//  5a. On success: receive {"type":"received","nameplate":"<code>","pake":"<receiver pubkey>"}.
-//  5b. On timeout: receive {"type":"expired",...}.
+//     5a. On success: receive {"type":"received","nameplate":"<code>","pake":"<receiver pubkey>"}.
+//     5b. On timeout: receive {"type":"expired",...}.
 func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug().Str("remote", r.RemoteAddr).Msg("websocket upgrade requested")
 

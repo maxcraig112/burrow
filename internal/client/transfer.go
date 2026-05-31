@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"gopherhole/internal/pake"
+	"github.com/maxcraig112/burrow/internal/pake"
 )
 
 const chunkSize = 64 * 1024 // 64 KB per encrypted chunk

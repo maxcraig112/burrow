@@ -7,11 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"gopherhole/internal/client"
-	"gopherhole/internal/nameplate"
-	"gopherhole/internal/qr"
-	"gopherhole/internal/tunnel"
-	"gopherhole/internal/webupload"
+	"github.com/maxcraig112/burrow/internal/client"
+	"github.com/maxcraig112/burrow/internal/nameplate"
+	"github.com/maxcraig112/burrow/internal/qr"
+	"github.com/maxcraig112/burrow/internal/tunnel"
+	"github.com/maxcraig112/burrow/internal/webupload"
 )
 
 func cmdReceiveWeb() {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"gopherhole/internal/exchange"
+	"github.com/maxcraig112/burrow/internal/exchange"
 )
 
 // receiveRequest is the JSON body expected by the Receive endpoint.

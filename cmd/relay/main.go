@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/maxcraig112/burrow/internal/relay"
 	"github.com/rs/zerolog"
-	"gopherhole/internal/relay"
 )
 
 func main() {

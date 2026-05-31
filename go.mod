@@ -1,4 +1,4 @@
-module gopherhole
+module github.com/maxcraig112/burrow
 
 go 1.22
 
