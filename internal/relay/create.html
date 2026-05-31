@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Burrow — Create Session</title>
+<link rel="stylesheet" href="/static/base.css">
+<link rel="stylesheet" href="/static/create.css">
+</head>
+<body>
+<div class="card">
+  <div class="logo">Burrow</div>
+  <div class="sub">Create a new upload session</div>
+
+  <div class="form-group">
+    <label>Save files to directory</label>
+    <div class="dir-row">
+      <div class="dir-display placeholder" id="dir-display">Choose a directory…</div>
+      <button class="browse-btn" id="browse-btn" type="button">Browse</button>
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="desc-input">Description (optional)</label>
+    <input type="text" id="desc-input" placeholder="e.g. Photos from the trip"/>
+  </div>
+  <button class="btn btn-primary" id="create-btn" type="button" disabled>Create Session</button>
+  <div class="err" id="err-msg"></div>
+
+  <div class="result" id="result">
+    <div class="result-np" id="result-np"></div>
+    <div class="result-url" id="result-url"></div>
+    <div id="qr-box"></div>
+  </div>
+
+  <div class="nav-links">
+    <a href="/active">Active sessions</a>
+    <a href="/">Home</a>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="picker">
+    <div class="picker-head">
+      <span class="picker-path" id="picker-path">/</span>
+      <button class="picker-close" id="picker-close" type="button">✕</button>
+    </div>
+    <div class="picker-list" id="picker-list"></div>
+    <div class="picker-foot">
+      <button class="picker-select" id="picker-select" type="button">Select this folder</button>
+      <button class="picker-cancel" id="picker-cancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/utils.js"></script>
+<script src="/static/picker.js"></script>
+<script src="/static/create-page.js"></script>
+</body>
+</html>

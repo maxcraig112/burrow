@@ -1,0 +1,70 @@
+body { display: flex; flex-direction: column; align-items: stretch; }
+
+.page-header { flex-shrink: 0; }
+
+.main-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.card { padding: 2.5rem; width: 100%; max-width: 620px; }
+
+.logo { font-size: 1.5rem; margin-bottom: .2rem; }
+.sub { font-size: .875rem; margin-bottom: 1.25rem; }
+
+.session-info {
+  display: grid; grid-template-columns: auto 1fr;
+  gap: .3rem .75rem; align-items: baseline;
+  background: #13151f; border-radius: 8px;
+  padding: .75rem 1rem; margin-bottom: 1.5rem;
+  font-size: .82rem;
+}
+.info-label { color: #475569; white-space: nowrap; }
+.info-value { color: #94a3b8; font-family: monospace; word-break: break-all; }
+.info-plain { font-family: inherit; font-style: italic; }
+
+.drop {
+  border: 2px dashed #3b4060;
+  border-radius: 10px;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  transition: border-color .15s, background .15s;
+  margin-bottom: .75rem;
+}
+.drop.over { border-color: #a78bfa; background: rgba(167,139,250,.07); }
+.drop-icon { font-size: 2.25rem; margin-bottom: .5rem; }
+.drop-text { font-size: .9rem; color: #94a3b8; }
+
+.file-list { margin-bottom: 1rem; max-height: 200px; overflow-y: auto; }
+.file-item {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .35rem .25rem;
+  border-bottom: 1px solid #23263a;
+  font-size: .8rem; color: #94a3b8;
+}
+.file-item:last-child { border-bottom: none; }
+.file-info { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { color: #64748b; }
+.remove-btn {
+  flex-shrink: 0; background: none; border: none; color: #475569;
+  cursor: pointer; font-size: .75rem; padding: .15rem .35rem;
+  border-radius: 4px; transition: color .1s, background .1s; line-height: 1;
+}
+.remove-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
+
+.btn-row { display: flex; gap: .75rem; margin-bottom: .75rem; }
+.btn { flex: 1; padding: .875rem; }
+
+.status { font-size: .875rem; color: #64748b; min-height: 1.3em; text-align: center; }
+
+.close-session { margin-top: .75rem; text-align: center; }
+.btn-close {
+  background: none; border: none; font-size: .75rem; color: #3b4060;
+  cursor: pointer; padding: .25rem .5rem; border-radius: 4px; transition: color .15s;
+}
+.btn-close:hover { color: #f87171; }
+
+input[type=file] { display: none; }

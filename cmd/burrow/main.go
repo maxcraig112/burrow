@@ -59,12 +59,17 @@ func main() {
 
 	switch os.Args[1] {
 	case "send":
-		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: burrow send <file>")
+		if len(os.Args) == 4 {
+			// burrow send <nameplate> <file>  →  upload to a receive-web session
+			cmdSendToSession(os.Args[2], os.Args[3])
+		} else if len(os.Args) == 3 {
+			// burrow send <file>  →  P2P exchange flow
+			requireConfig()
+			cmdSend(os.Args[2])
+		} else {
+			fmt.Fprintln(os.Stderr, "usage: burrow send <file>\n       burrow send <nameplate> <file>")
 			os.Exit(1)
 		}
-		requireConfig()
-		cmdSend(os.Args[2])
 	case "receive":
 		if len(os.Args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: burrow receive <code>")
@@ -200,7 +205,8 @@ func usage() {
 	fmt.Println(`burrow - encrypted peer-to-peer file transfer
 
 Usage:
-  burrow send <file>                    Send a file and display the receive code
+  burrow send <file>                    Send a file (P2P, generates a one-time code)
+  burrow send <nameplate> <file>        Upload a file to an active receive-web session
   burrow receive <code>                 Receive a file using the code from the sender
   burrow receive-web [-d description]   Host a web upload page and display a QR code
   burrow active                         List active receive-web sessions on your relay

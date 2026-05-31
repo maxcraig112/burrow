@@ -4,165 +4,19 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Burrow — Active Sessions</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#0f1117;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:2rem 10%}
-h1{font-size:1.4rem;color:#fff;margin-bottom:.3rem;text-align:center}
-.sub{color:#64748b;font-size:.8rem;margin-bottom:2rem;text-align:center}
-#root{display:grid;grid-template-columns:1fr;gap:5%;align-items:start}
-@media(min-width:600px){#root{grid-template-columns:repeat(2,1fr)}}
-@media(min-width:1000px){#root{grid-template-columns:repeat(3,1fr)}}
-.card{background:#1a1d27;border:1px solid #2d3148;border-radius:16px;padding:1.5rem;cursor:pointer;transition:border-color .15s,background .15s;user-select:none}
-.card:hover{border-color:#3d4060;background:#1e2135}
-.card.drag-over{border-color:#a78bfa;background:rgba(167,139,250,.07)}
-.card-head{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.9rem}
-.np{font-family:monospace;font-size:.95rem;font-weight:700;color:#a78bfa}
-.desc{color:#64748b;font-size:.8rem;font-style:italic}
-.meta{display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1.5rem;margin-bottom:1rem}
-.ml{color:#475569;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.1rem}
-.mv{color:#94a3b8;font-size:.82rem}
-.drop-zone{
-  border:2px dashed #3b4060;border-radius:10px;
-  padding:1.5rem 1rem;text-align:center;
-  transition:border-color .15s,background .15s;
-  pointer-events:none;
-  display:flex;flex-direction:column;align-items:center;gap:.4rem;
-}
-.drop-icon{font-size:1.6rem}
-.drop-text{font-size:.82rem;color:#64748b}
-.card.drag-over .drop-zone{border-color:#a78bfa;background:rgba(167,139,250,.07)}
-.card.drag-over .drop-text{color:#a78bfa}
-.status{margin-top:.75rem;font-size:.85rem;color:#64748b;min-height:1.3em;display:flex;align-items:center;gap:.45rem}
-.ok{color:#34d399}
-.err{color:#f87171}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spinner{width:16px;height:16px;border:2px solid #3b4060;border-top-color:#a78bfa;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-.empty{text-align:center;color:#475569;padding:4rem 0;font-size:.88rem;grid-column:1/-1}
-</style>
+<link rel="stylesheet" href="/static/base.css">
+<link rel="stylesheet" href="/static/active.css">
 </head>
 <body>
+<header class="page-header">
+  <a class="home-btn" href="/">← Burrow</a>
+</header>
+<div class="page-content">
 <h1>Active Sessions</h1>
 <p class="sub">Refreshes every 10 s &nbsp;&middot;&nbsp; Drag files onto a card to upload &nbsp;&middot;&nbsp; Click to open the upload page</p>
 <div id="root"></div>
-<script>
-function dur(iso){
-  const s=Math.floor((Date.now()-new Date(iso))/1000)
-  if(s<60)return s+'s'
-  const m=Math.floor(s/60)
-  if(m<60)return m+'m '+(s%60)+'s'
-  return Math.floor(m/60)+'h '+(m%60)+'m'
-}
-
-function esc(s){
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-}
-
-function metaRow(label,value){
-  return '<div><div class="ml">'+label+'</div><div class="mv">'+esc(value)+'</div></div>'
-}
-
-function setStatus(el,state,text){
-  el.className='status'+(state==='ok'?' ok':state==='err'?' err':'')
-  if(state==='uploading'){
-    el.innerHTML='<div class="spinner"></div>'+esc(text)
-  }else{
-    el.textContent=(state==='ok'?'✓ ':state==='err'?'✗ ':'')+text
-  }
-}
-
-function buildCard(s){
-  const card=document.createElement('div')
-  card.className='card'
-  card.dataset.np=s.nameplate
-
-  let head='<div class="card-head"><span class="np">'+esc(s.nameplate)+'</span>'
-  if(s.description)head+='<span class="desc">"'+esc(s.description)+'"</span>'
-  head+='</div>'
-
-  let meta='<div class="meta">'
-  meta+=metaRow('Active for',dur(s.started_at))
-  meta+=metaRow('Files received',s.files_received)
-  meta+=metaRow('Receiver IP',s.receiver_ip)
-  if(s.last_uploader_ip)meta+=metaRow('Last upload from',s.last_uploader_ip)
-  meta+='</div>'
-
-  const dropZone=
-    '<div class="drop-zone">'+
-      '<div class="drop-icon">📂</div>'+
-      '<div class="drop-text">Drop files here to upload</div>'+
-    '</div>'
-
-  card.innerHTML=head+meta+dropZone+'<div class="status"></div>'
-
-  card.addEventListener('click',()=>window.location.href=s.url)
-
-  let dragN=0
-  card.addEventListener('dragenter',e=>{e.preventDefault();dragN++;card.classList.add('drag-over')})
-  card.addEventListener('dragover',e=>e.preventDefault())
-  card.addEventListener('dragleave',()=>{if(--dragN<=0){dragN=0;card.classList.remove('drag-over')}})
-  card.addEventListener('drop',e=>{
-    e.preventDefault();e.stopPropagation()
-    dragN=0;card.classList.remove('drag-over')
-    const files=[...e.dataTransfer.files]
-    if(files.length)upload(s.nameplate,files,card.querySelector('.status'))
-  })
-
-  return card
-}
-
-async function upload(nameplate,files,statusEl){
-  const label=files.length+' file'+(files.length>1?'s':'')
-  setStatus(statusEl,'uploading','Uploading '+label+'…')
-  const fd=new FormData()
-  files.forEach(f=>fd.append('file',f,f.name))
-  try{
-    const res=await fetch('/t/'+nameplate+'/upload',{method:'POST',body:fd})
-    if(!res.ok)throw new Error('HTTP '+res.status)
-    const data=await res.json().catch(()=>({}))
-    const saved=data.saved?data.saved.length:files.length
-    const savedLabel=saved+' file'+(saved>1?'s':'')+' uploaded'
-    setStatus(statusEl,'ok',savedLabel)
-    setTimeout(()=>{if(statusEl.className.includes('ok'))setStatus(statusEl,'','')},5000)
-    load()
-  }catch(err){
-    setStatus(statusEl,'err','Failed: '+err.message)
-  }
-}
-
-async function load(){
-  try{
-    const res=await fetch('/api/sessions')
-    const data=await res.json()
-    // Sort oldest first so order is stable (longest active at top).
-    const sessions=(data.sessions||[]).sort((a,b)=>new Date(a.started_at)-new Date(b.started_at))
-    const root=document.getElementById('root')
-
-    // Preserve status messages across refreshes.
-    const prev={}
-    root.querySelectorAll('.card').forEach(c=>{
-      const el=c.querySelector('.status')
-      if(el.textContent||el.innerHTML)prev[c.dataset.np]={html:el.innerHTML,cls:el.className}
-    })
-
-    root.innerHTML=''
-    if(!sessions.length){
-      root.innerHTML='<div class="empty">No active sessions</div>'
-      return
-    }
-    sessions.forEach(s=>{
-      const card=buildCard(s)
-      if(prev[s.nameplate]){
-        const el=card.querySelector('.status')
-        el.innerHTML=prev[s.nameplate].html
-        el.className=prev[s.nameplate].cls
-      }
-      root.appendChild(card)
-    })
-  }catch(e){console.error('sessions fetch failed',e)}
-}
-
-load()
-setInterval(load,10000)
-</script>
+</div>
+<script src="/static/utils.js"></script>
+<script src="/static/sessions.js"></script>
 </body>
 </html>

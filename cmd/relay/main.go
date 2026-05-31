@@ -35,8 +35,14 @@ func main() {
 	if tunnelBind == "" {
 		tunnelBind = ":8082"
 	}
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			uploadDir = cwd
+		}
+	}
 
-	hub := relay.NewTunnelHub(tunnelPublicURL, logger)
+	hub := relay.NewTunnelHub(tunnelPublicURL, uploadDir, logger)
 	r := relay.New(2*time.Minute, logger, hub)
 
 	ln, err := net.Listen("tcp", ":9090")

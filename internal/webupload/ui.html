@@ -4,76 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Burrow</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f1117; color: #e2e8f0;
-      min-height: 100vh; display: flex; align-items: center;
-      justify-content: center; padding: 1.25rem;
-    }
-    .card {
-      background: #1a1d27; border: 1px solid #2d3148; border-radius: 16px;
-      padding: 2.5rem; width: 100%; max-width: 620px;
-    }
-    .logo { font-size: 1.5rem; font-weight: 700; color: #a78bfa; margin-bottom: .2rem; }
-    .sub  { font-size: .875rem; color: #64748b; margin-bottom: 1.25rem; }
-    .session-info {
-      display: grid; grid-template-columns: auto 1fr;
-      gap: .3rem .75rem; align-items: baseline;
-      background: #13151f; border-radius: 8px;
-      padding: .75rem 1rem; margin-bottom: 1.5rem;
-      font-size: .82rem;
-    }
-    .info-label { color: #475569; white-space: nowrap; }
-    .info-value { color: #94a3b8; font-family: monospace; word-break: break-all; }
-    .info-plain { font-family: inherit; font-style: italic; }
-    .drop {
-      border: 2px dashed #3b4060; border-radius: 10px;
-      padding: 3.5rem 1.5rem; text-align: center;
-      transition: border-color .15s, background .15s; margin-bottom: .75rem;
-    }
-    .drop.over { border-color: #a78bfa; background: rgba(167,139,250,.07); }
-    .drop-icon { font-size: 2.25rem; margin-bottom: .5rem; }
-    .drop-text { font-size: .9rem; color: #94a3b8; }
-    .file-list {
-      margin-bottom: 1rem; max-height: 200px; overflow-y: auto;
-    }
-    .file-item {
-      display: flex; align-items: center; gap: .5rem;
-      padding: .35rem .25rem; border-bottom: 1px solid #23263a;
-      font-size: .8rem; color: #94a3b8;
-    }
-    .file-item:last-child { border-bottom: none; }
-    .file-info { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .file-size { color: #64748b; }
-    .remove-btn {
-      flex-shrink: 0; background: none; border: none; color: #475569;
-      cursor: pointer; font-size: .75rem; padding: .15rem .35rem;
-      border-radius: 4px; transition: color .1s, background .1s; line-height: 1;
-    }
-    .remove-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
-    .btn-row { display: flex; gap: .75rem; margin-bottom: .75rem; }
-    .btn {
-      flex: 1; padding: .875rem; border: none; border-radius: 8px;
-      font-size: .95rem; font-weight: 600; cursor: pointer;
-      transition: background .15s, opacity .15s;
-    }
-    .btn-primary { background: #7c3aed; color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: #6d28d9; }
-    .btn-primary:disabled { opacity: .35; cursor: default; }
-    .btn-secondary { background: #2d3148; color: #94a3b8; }
-    .btn-secondary:hover { background: #3b4060; }
-    .status { font-size: .875rem; color: #64748b; min-height: 1.3em; text-align: center; }
-    .ok  { color: #34d399; }
-    .err { color: #f87171; }
-    .all-sessions { margin-top: 1.25rem; text-align: center; }
-    .all-sessions a { font-size: .8rem; color: #475569; text-decoration: none; }
-    .all-sessions a:hover { color: #94a3b8; }
-    input[type=file] { display: none; }
-  </style>
+  <link rel="stylesheet" href="/static/base.css">
+  <link rel="stylesheet" href="/static/upload.css">
 </head>
 <body>
+<header class="page-header">
+  <a class="home-btn" href="/">← Burrow</a>
+</header>
+<div class="main-area">
 <div class="card">
   <div class="logo">Burrow</div>
   <div class="sub">Send files to the receiver</div>
@@ -103,88 +41,12 @@
 
   <div class="status" id="status"></div>
   <div class="all-sessions"><a href="/active">View all active sessions →</a></div>
+  <div class="close-session"><button class="btn-close" id="close-btn" type="button">Close session</button></div>
   <input type="file" id="file-input" multiple accept="*/*">
 </div>
-<script>
-const drop      = document.getElementById('drop');
-const browseBtn = document.getElementById('browse-btn');
-const uploadBtn = document.getElementById('upload-btn');
-const fileInput = document.getElementById('file-input');
-const fileList  = document.getElementById('file-list');
-const status    = document.getElementById('status');
-let chosen = [];
-
-function fmtBytes(n) {
-  if (n < 1024) return n + ' B';
-  const u = ['KB','MB','GB','TB'];
-  let i = -1;
-  do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
-  return n.toFixed(1) + ' ' + u[i];
-}
-
-function addFiles(files) {
-  for (const f of Array.from(files)) {
-    if (!chosen.some(c => c.name === f.name && c.size === f.size)) {
-      chosen.push(f);
-    }
-  }
-  fileInput.value = ''; // reset so the same file can be re-added after removal
-  renderList();
-  status.textContent = ''; status.className = 'status';
-}
-
-function removeFile(i) {
-  chosen.splice(i, 1);
-  renderList();
-}
-
-function renderList() {
-  fileList.innerHTML = '';
-  chosen.forEach((f, i) => {
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    const info = document.createElement('span');
-    info.className = 'file-info';
-    info.title = f.name;
-    info.innerHTML = f.name + ' <span class="file-size">(' + fmtBytes(f.size) + ')</span>';
-    const rm = document.createElement('button');
-    rm.className = 'remove-btn'; rm.type = 'button'; rm.title = 'Remove'; rm.textContent = '✕';
-    rm.addEventListener('click', () => removeFile(i));
-    item.appendChild(info); item.appendChild(rm);
-    fileList.appendChild(item);
-  });
-  uploadBtn.disabled = chosen.length === 0;
-}
-
-browseBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => addFiles(fileInput.files));
-drop.addEventListener('dragover',  e => { e.preventDefault(); drop.classList.add('over'); });
-drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); });
-drop.addEventListener('click', e => { if (e.target === drop || e.target.classList.contains('drop-icon') || e.target.classList.contains('drop-text')) fileInput.click(); });
-
-uploadBtn.addEventListener('click', async () => {
-  if (!chosen.length) return;
-  const files = [...chosen];
-  chosen = []; renderList();
-
-  for (const file of files) {
-    status.className = 'status';
-    status.textContent = 'Uploading ' + file.name + '…';
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('upload', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      status.textContent = '✓ ' + file.name + ' delivered';
-      status.className = 'status ok';
-    } catch (err) {
-      status.textContent = '✗ ' + err.message;
-      status.className = 'status err';
-      return;
-    }
-  }
-});
-</script>
+</div>
+<script>window.NAMEPLATE = "{{.Nameplate}}";</script>
+<script src="/static/utils.js"></script>
+<script src="/static/upload-page.js"></script>
 </body>
 </html>
