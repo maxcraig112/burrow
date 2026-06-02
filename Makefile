@@ -14,7 +14,7 @@ relay: | $(BIN)
 	go build -o $(BIN)/ ./cmd/relay
 
 burrow: | $(BIN)
-	go build -o $(BIN)/ ./cmd/burrow
+	go build -o $(BIN)/ .
 
 run-exchange: exchange
 	./$(BIN)/exchange

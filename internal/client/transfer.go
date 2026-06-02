@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/maxcraig112/burrow/internal/pake"
@@ -18,23 +19,29 @@ import (
 
 const chunkSize = 64 * 1024 // 64 KB per encrypted chunk
 
+// fileHeader is sent as the first encrypted chunk of every transfer.
+// Type "dir" precedes a directory transfer; omitted/"file" is a single file.
 type fileHeader struct {
-	Name string `json:"name"`
-	Size int64  `json:"size"`
+	Type  string `json:"type,omitempty"`  // "file" (default) or "dir"
+	Name  string `json:"name"`
+	Size  int64  `json:"size,omitempty"`  // bytes; total for dirs
+	Count int    `json:"count,omitempty"` // number of files (dirs only)
+	Path  string `json:"path,omitempty"`  // slash-separated relative path (files in a dir)
 }
 
-// IncomingFile holds the metadata received from the sender before the file
-// data begins. Call Save to write the file to disk.
-type IncomingFile struct {
-	Name string
-	Size int64
-	conn net.Conn
-	aead cipher.AEAD
+// IncomingTransfer holds the metadata from the sender before data begins.
+// Call Save to write to disk.
+type IncomingTransfer struct {
+	IsDir bool
+	Name  string // file name or directory name
+	Size  int64  // total bytes
+	Count int    // number of files (1 for a single-file transfer)
+	conn  net.Conn
+	aead  cipher.AEAD
 }
 
-// SendFile connects to the relay, waits for the receiver, then streams the
-// file in AES-256-GCM encrypted chunks. progress is called with (sent, total)
-// after each chunk and may be nil.
+// SendFile connects to the relay and streams a single file encrypted.
+// progress is called with (sent, total) after each chunk; may be nil.
 func SendFile(keys *pake.DerivedKeys, filePath string, progress func(sent, total int64)) error {
 	conn, err := connectRelay(RelayAddr, keys.RelayToken, "sender")
 	if err != nil {
@@ -63,35 +70,105 @@ func SendFile(keys *pake.DerivedKeys, filePath string, progress func(sent, total
 		return fmt.Errorf("send header: %w", err)
 	}
 
-	buf := make([]byte, chunkSize)
-	var sent int64
-	for {
-		n, readErr := f.Read(buf)
-		if n > 0 {
-			if err := writeChunk(conn, aead, buf[:n]); err != nil {
-				return fmt.Errorf("send chunk: %w", err)
-			}
-			sent += int64(n)
-			if progress != nil {
-				progress(sent, info.Size())
-			}
+	return streamFile(conn, aead, f, info.Size(), 0, progress)
+}
+
+// SendDir connects to the relay and streams every file under dirPath.
+// onFile is called just before each file begins sending; may be nil.
+// progress is called with (totalSent, totalSize) after each chunk; may be nil.
+func SendDir(keys *pake.DerivedKeys, dirPath string, onFile func(relPath string, size int64), progress func(sent, total int64)) error {
+	type entry struct {
+		abs  string
+		rel  string // slash-separated relative path
+		size int64
+	}
+
+	var files []entry
+	var totalSize int64
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
 		}
-		if readErr == io.EOF {
-			break
+		if info.IsDir() {
+			return nil
 		}
-		if readErr != nil {
-			return fmt.Errorf("read file: %w", readErr)
+		rel, err := filepath.Rel(dirPath, path)
+		if err != nil {
+			return err
+		}
+		files = append(files, entry{abs: path, rel: filepath.ToSlash(rel), size: info.Size()})
+		totalSize += info.Size()
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk directory: %w", err)
+	}
+
+	conn, err := connectRelay(RelayAddr, keys.RelayToken, "sender")
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	aead, err := newAEAD(keys.FileKey)
+	if err != nil {
+		return fmt.Errorf("create cipher: %w", err)
+	}
+
+	dirHdr, _ := json.Marshal(fileHeader{
+		Type:  "dir",
+		Name:  filepath.Base(dirPath),
+		Size:  totalSize,
+		Count: len(files),
+	})
+	if err := writeChunk(conn, aead, dirHdr); err != nil {
+		return fmt.Errorf("send dir header: %w", err)
+	}
+
+	var totalSent int64
+	for _, fe := range files {
+		if onFile != nil {
+			onFile(fe.rel, fe.size)
+		}
+
+		fhdr, _ := json.Marshal(fileHeader{
+			Type: "file",
+			Name: filepath.Base(fe.abs),
+			Path: fe.rel,
+			Size: fe.size,
+		})
+		if err := writeChunk(conn, aead, fhdr); err != nil {
+			return fmt.Errorf("send file header: %w", err)
+		}
+
+		f, err := os.Open(fe.abs)
+		if err != nil {
+			return fmt.Errorf("open %s: %w", fe.rel, err)
+		}
+
+		var wrap func(sent, _ int64)
+		if progress != nil {
+			wrap = func(sent, _ int64) { progress(totalSent+sent, totalSize) }
+		}
+		if err := streamFile(conn, aead, f, fe.size, 0, wrap); err != nil {
+			f.Close()
+			return err
+		}
+		totalSent += fe.size
+		f.Close()
+
+		// Zero-length marker signals end of this file.
+		if _, err := conn.Write([]byte{0, 0, 0, 0}); err != nil {
+			return err
 		}
 	}
 
-	// Zero-length marker signals end of stream.
-	_, err = conn.Write([]byte{0, 0, 0, 0})
-	return err
+	return nil
 }
 
-// ReceiveHeader connects to the relay and reads the encrypted file header,
-// returning an IncomingFile ready to Save.
-func ReceiveHeader(keys *pake.DerivedKeys) (*IncomingFile, error) {
+// ReceiveTransfer connects to the relay, reads the initial header, and returns
+// an IncomingTransfer. Call Save to write to disk.
+func ReceiveTransfer(keys *pake.DerivedKeys) (*IncomingTransfer, error) {
 	conn, err := connectRelay(RelayAddr, keys.RelayToken, "receiver")
 	if err != nil {
 		return nil, err
@@ -115,50 +192,151 @@ func ReceiveHeader(keys *pake.DerivedKeys) (*IncomingFile, error) {
 		return nil, fmt.Errorf("parse header: %w", err)
 	}
 
-	return &IncomingFile{Name: hdr.Name, Size: hdr.Size, conn: conn, aead: aead}, nil
+	t := &IncomingTransfer{conn: conn, aead: aead, Name: hdr.Name, Size: hdr.Size}
+	if hdr.Type == "dir" {
+		t.IsDir = true
+		t.Count = hdr.Count
+	} else {
+		t.Count = 1
+	}
+	return t, nil
 }
 
-// Save writes the incoming file to destDir. progress is called with
-// (received, total) after each chunk and may be nil. Returns the path saved.
-func (f *IncomingFile) Save(destDir string, progress func(received, total int64)) (string, error) {
-	defer f.conn.Close()
+// Save writes the transfer to destDir.
+//   - Single file: saved as destDir/name; returns that path.
+//   - Directory:   saved as destDir/dirname/; returns that path.
+//
+// onFile is called before each file begins writing (relPath, size); may be nil.
+// progress is called with (totalReceived, totalExpected) after each chunk; may be nil.
+func (t *IncomingTransfer) Save(destDir string, onFile func(relPath string, size int64), progress func(received, total int64)) (string, error) {
+	defer t.conn.Close()
 
-	destPath := filepath.Join(destDir, f.Name)
+	if !t.IsDir {
+		if onFile != nil {
+			onFile(t.Name, t.Size)
+		}
+		destPath := filepath.Join(destDir, t.Name)
+		if err := receiveFileData(t.conn, t.aead, destPath, t.Size, func(n, _ int64) {
+			if progress != nil {
+				progress(n, t.Size)
+			}
+		}); err != nil {
+			return "", err
+		}
+		return destPath, nil
+	}
+
+	// Directory transfer.
+	dirPath := filepath.Join(destDir, t.Name)
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		return "", fmt.Errorf("create directory: %w", err)
+	}
+
+	var totalReceived int64
+	for i := 0; i < t.Count; i++ {
+		hdrBytes, err := readChunk(t.conn, t.aead)
+		if err != nil {
+			return "", fmt.Errorf("receive file header: %w", err)
+		}
+		var hdr fileHeader
+		if err := json.Unmarshal(hdrBytes, &hdr); err != nil {
+			return "", fmt.Errorf("parse file header: %w", err)
+		}
+
+		// Guard against path traversal.
+		cleanRel := filepath.Clean(filepath.FromSlash(hdr.Path))
+		if filepath.IsAbs(cleanRel) || strings.HasPrefix(cleanRel, "..") {
+			return "", fmt.Errorf("rejected unsafe path in transfer: %s", hdr.Path)
+		}
+		destPath := filepath.Join(dirPath, cleanRel)
+
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return "", fmt.Errorf("create subdirectory: %w", err)
+		}
+
+		if onFile != nil {
+			onFile(hdr.Path, hdr.Size)
+		}
+
+		localReceived := int64(0)
+		if err := receiveFileData(t.conn, t.aead, destPath, hdr.Size, func(n, _ int64) {
+			delta := n - localReceived
+			localReceived = n
+			totalReceived += delta
+			if progress != nil {
+				progress(totalReceived, t.Size)
+			}
+		}); err != nil {
+			return "", err
+		}
+	}
+
+	return dirPath, nil
+}
+
+// receiveFileData reads encrypted chunks until the zero-length EOF marker and
+// writes them to destPath.
+func receiveFileData(conn net.Conn, aead cipher.AEAD, destPath string, _ int64, progress func(received, total int64)) error {
 	out, err := os.Create(destPath)
 	if err != nil {
-		return "", fmt.Errorf("create file: %w", err)
+		return fmt.Errorf("create file: %w", err)
 	}
 
 	var received int64
 	for {
-		chunk, err := readChunk(f.conn, f.aead)
+		chunk, err := readChunk(conn, aead)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			out.Close()
 			os.Remove(destPath)
-			return "", fmt.Errorf("receive chunk: %w", err)
+			return fmt.Errorf("receive chunk: %w", err)
 		}
 		if _, err := out.Write(chunk); err != nil {
 			out.Close()
 			os.Remove(destPath)
-			return "", fmt.Errorf("write chunk: %w", err)
+			return fmt.Errorf("write chunk: %w", err)
 		}
 		received += int64(len(chunk))
 		if progress != nil {
-			progress(received, f.Size)
+			progress(received, 0)
 		}
 	}
 
-	if err := out.Close(); err != nil {
-		return "", err
+	return out.Close()
+}
+
+// streamFile sends the contents of f as encrypted chunks then writes the
+// zero-length EOF marker. offset is added to sent bytes for the progress
+// callback (used when tracking total bytes across multiple files).
+func streamFile(conn net.Conn, aead cipher.AEAD, f *os.File, size, offset int64, progress func(sent, total int64)) error {
+	buf := make([]byte, chunkSize)
+	var sent int64
+	for {
+		n, readErr := f.Read(buf)
+		if n > 0 {
+			if err := writeChunk(conn, aead, buf[:n]); err != nil {
+				return fmt.Errorf("send chunk: %w", err)
+			}
+			sent += int64(n)
+			if progress != nil {
+				progress(offset+sent, size)
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return fmt.Errorf("read file: %w", readErr)
+		}
 	}
-	return destPath, nil
+	// Zero-length marker for single-file transfers only; dirs send it externally.
+	_, err := conn.Write([]byte{0, 0, 0, 0})
+	return err
 }
 
 // connectRelay dials the relay server and performs the pairing handshake.
-// It blocks until the peer connects (or the relay times out).
 func connectRelay(addr, token, side string) (net.Conn, error) {
 	conn, err := net.DialTimeout("tcp", addr, 30*time.Second)
 	if err != nil {
@@ -167,7 +345,6 @@ func connectRelay(addr, token, side string) (net.Conn, error) {
 
 	fmt.Fprintf(conn, "please relay %s for %s\n", token, side)
 
-	// Read the relay's response byte-by-byte to avoid buffering file data.
 	conn.SetDeadline(time.Now().Add(3 * time.Minute))
 	resp, err := readRelayLine(conn)
 	conn.SetDeadline(time.Time{})
@@ -212,7 +389,7 @@ func writeChunk(conn net.Conn, aead cipher.AEAD, plaintext []byte) error {
 	if _, err := rand.Read(nonce); err != nil {
 		return err
 	}
-	ct := aead.Seal(nonce, nonce, plaintext, nil) // nonce || ciphertext+tag
+	ct := aead.Seal(nonce, nonce, plaintext, nil)
 
 	var lenBuf [4]byte
 	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(ct)))
@@ -223,8 +400,7 @@ func writeChunk(conn net.Conn, aead cipher.AEAD, plaintext []byte) error {
 	return err
 }
 
-// readChunk reads one encrypted chunk. Returns io.EOF when the zero-length
-// end-of-stream marker is read.
+// readChunk reads one encrypted chunk. Returns io.EOF on the zero-length marker.
 func readChunk(conn net.Conn, aead cipher.AEAD) ([]byte, error) {
 	var lenBuf [4]byte
 	if _, err := io.ReadFull(conn, lenBuf[:]); err != nil {

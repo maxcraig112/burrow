@@ -59,15 +59,8 @@ func main() {
 
 	switch os.Args[1] {
 	case "send":
-		if len(os.Args) == 4 {
-			// burrow send <nameplate> <file>  →  upload to a receive-web session
-			cmdSendToSession(os.Args[2], os.Args[3])
-		} else if len(os.Args) == 3 {
-			// burrow send <file>  →  P2P exchange flow
-			requireConfig()
-			cmdSend(os.Args[2])
-		} else {
-			fmt.Fprintln(os.Stderr, "usage: burrow send <file>\n       burrow send <nameplate> <file>")
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: burrow send <file|dir>")
 			os.Exit(1)
 		}
 	case "receive":
@@ -91,13 +84,10 @@ func main() {
 	}
 }
 
-func cmdSend(filePath string) {
-	info, err := os.Stat(filePath)
+func cmdSend(path string) {
+	info, err := os.Stat(path)
 	if err != nil {
 		fatalf("file error: %v", err)
-	}
-	if info.IsDir() {
-		fatalf("%s is a directory — only files are supported", filePath)
 	}
 
 	fmt.Println("Connecting to exchange server...")
@@ -115,18 +105,41 @@ func cmdSend(filePath string) {
 		fatalf("exchange error: %v", err)
 	}
 
-	fmt.Printf("Receiver connected. Sending %s (%s)...\n",
-		filepath.Base(filePath), progress.FormatBytes(info.Size()))
-
-	bar := progress.NewBar(info.Size())
-	err = client.SendFile(keys, filePath, func(sent, _ int64) {
-		bar.Print(sent)
-	})
-	if err != nil {
-		fmt.Println()
-		fatalf("send error: %v", err)
+	if info.IsDir() {
+		var totalSize int64
+		filepath.Walk(path, func(_ string, fi os.FileInfo, walkErr error) error { //nolint:errcheck
+			if walkErr == nil && !fi.IsDir() {
+				totalSize += fi.Size()
+			}
+			return nil
+		})
+		fmt.Printf("Receiver connected. Sending directory %s (%s)...\n",
+			filepath.Base(path), progress.FormatBytes(totalSize))
+		bar := progress.NewBar(totalSize)
+		err = client.SendDir(keys, path,
+			func(relPath string, size int64) {
+				fmt.Printf("\n  → %s (%s)", relPath, progress.FormatBytes(size))
+			},
+			func(sent, _ int64) { bar.Print(sent) },
+		)
+		if err != nil {
+			fmt.Println()
+			fatalf("send error: %v", err)
+		}
+		bar.Done()
+	} else {
+		fmt.Printf("Receiver connected. Sending %s (%s)...\n",
+			filepath.Base(path), progress.FormatBytes(info.Size()))
+		bar := progress.NewBar(info.Size())
+		err = client.SendFile(keys, path, func(sent, _ int64) {
+			bar.Print(sent)
+		})
+		if err != nil {
+			fmt.Println()
+			fatalf("send error: %v", err)
+		}
+		bar.Done()
 	}
-	bar.Done()
 	fmt.Println("Done!")
 }
 
@@ -140,16 +153,28 @@ func cmdReceive(code string) {
 
 	fmt.Println("Connecting to relay...")
 
-	incoming, err := client.ReceiveHeader(keys)
+	t, err := client.ReceiveTransfer(keys)
 	if err != nil {
 		fatalf("relay error: %v", err)
 	}
 
-	fmt.Printf("Receiving %s (%s)...\n", incoming.Name, progress.FormatBytes(incoming.Size))
+	if t.IsDir {
+		fmt.Printf("Receiving directory %s (%d files, %s)...\n",
+			t.Name, t.Count, progress.FormatBytes(t.Size))
+	} else {
+		fmt.Printf("Receiving %s (%s)...\n", t.Name, progress.FormatBytes(t.Size))
+	}
+
+	var onFile func(string, int64)
+	if t.IsDir {
+		onFile = func(relPath string, size int64) {
+			fmt.Printf("\n  ← %s (%s)", relPath, progress.FormatBytes(size))
+		}
+	}
 
 	destDir, _ := os.Getwd()
-	bar := progress.NewBar(incoming.Size)
-	savedPath, err := incoming.Save(destDir, func(received, _ int64) {
+	bar := progress.NewBar(t.Size)
+	savedPath, err := t.Save(destDir, onFile, func(received, _ int64) {
 		bar.Print(received)
 	})
 	if err != nil {
@@ -205,13 +230,11 @@ func usage() {
 	fmt.Println(`burrow - encrypted peer-to-peer file transfer
 
 Usage:
-  burrow send <file>                    Send a file (P2P, generates a one-time code)
-  burrow send <nameplate> <file>        Upload a file to an active receive-web session
-  burrow receive <code>                 Receive a file using the code from the sender
-  burrow receive-web [-d description]   Host a web upload page and display a QR code
-  burrow active                         List active receive-web sessions on your relay
-  burrow config                         Show current server addresses and config path
-  burrow config <exchange> <relay>      Save server addresses to user config`)
+  burrow send <file|dir>           Send a file or directory and display the receive code
+  burrow receive <code>            Receive a file using the code from the sender
+  burrow receive-web               Host a web upload page and display a QR code
+  burrow config                    Show current server addresses and config path
+  burrow config <exchange> <relay> Save server addresses to user config`)
 }
 
 func fatalf(format string, args ...any) {
