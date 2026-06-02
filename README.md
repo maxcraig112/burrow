@@ -19,6 +19,7 @@ Burrow allows you to establish a single or multi-file connection between any two
 | Feature                          | magic-wormhole | Burrow                    |
 | -------------------------------- | -------------- | ------------------------- |
 | CLI send / receive               | yes            | yes                       |
+| Directory transfer               | yes            | yes                       |
 | Persistent browser upload (`receive-web`) | no             | yes                       |
 | Language                         | Python         | Go (single static binary) |
 | Self-hostable infra              | no             | yes                       |
@@ -37,17 +38,18 @@ The main difference that burrow has over magic-wormhole is the ability for the r
 Requires Go 1.22+.
 
 ```bash
-go install github.com/maxcraig112/burrow/cmd/burrow@latest
+go install github.com/maxcraig112/burrow@latest
 ```
 
 You'll need to point it at a server, see [self-hosting](docs/self-hosting.md) to run your own, then run `burrow config` once to configure server addresses.
 
 ## Usage
 
-### Send a file
+### Send a file or directory
 
 ```bash
-burrow send photo.jpg
+burrow send photo.jpg        # single file
+burrow send ./project/       # entire directory
 ```
 
 ```text
@@ -62,7 +64,7 @@ Receiver connected. Sending photo.jpg (4.2 MB)...
 Done!
 ```
 
-### Receive a file
+### Receive a file or directory
 
 ```bash
 burrow receive swift-copper-leaps
@@ -74,6 +76,8 @@ Receiving photo.jpg (4.2 MB)...
 Saved to photo.jpg
 Done!
 ```
+
+For a directory transfer the receiver sees each file as it arrives and the directory is recreated in the current working directory.
 
 ### Receive via browser
 
