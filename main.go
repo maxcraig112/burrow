@@ -63,6 +63,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, "usage: burrow send <file|dir>")
 			os.Exit(1)
 		}
+		requireConfig()
+		cmdSend(os.Args[2])
 	case "receive":
 		if len(os.Args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: burrow receive <code>")
@@ -73,8 +75,6 @@ func main() {
 	case "receive-web":
 		requireConfig()
 		cmdReceiveWeb(os.Args[2:])
-	case "active":
-		cmdActive()
 	case "config":
 		cmdConfig(os.Args[2:])
 	default:
