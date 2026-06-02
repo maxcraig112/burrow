@@ -50,10 +50,10 @@ jobs:
           GOOS=linux GOARCH=amd64 go build -trimpath -o dist/exchange-linux-amd64 ./cmd/exchange
           GOOS=linux GOARCH=amd64 go build -trimpath -o dist/relay-linux-amd64    ./cmd/relay
 
-          GOOS=linux   GOARCH=amd64 go build -trimpath -o dist/burrow-linux-amd64       ./cmd/burrow
-          GOOS=darwin  GOARCH=amd64 go build -trimpath -o dist/burrow-darwin-amd64      ./cmd/burrow
-          GOOS=darwin  GOARCH=arm64 go build -trimpath -o dist/burrow-darwin-arm64      ./cmd/burrow
-          GOOS=windows GOARCH=amd64 go build -trimpath -o dist/burrow-windows-amd64.exe ./cmd/burrow
+          GOOS=linux   GOARCH=amd64 go build -trimpath -o dist/burrow-linux-amd64       .
+          GOOS=darwin  GOARCH=amd64 go build -trimpath -o dist/burrow-darwin-amd64      .
+          GOOS=darwin  GOARCH=arm64 go build -trimpath -o dist/burrow-darwin-arm64      .
+          GOOS=windows GOARCH=amd64 go build -trimpath -o dist/burrow-windows-amd64.exe .
 
       - name: Create release
         uses: softprops/action-gh-release@v2
