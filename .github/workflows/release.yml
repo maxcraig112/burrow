@@ -46,14 +46,16 @@ jobs:
       - name: Build binaries
         run: |
           mkdir -p dist
+          VERSION=${{ steps.version.outputs.version }}
 
           GOOS=linux GOARCH=amd64 go build -trimpath -o dist/exchange-linux-amd64 ./cmd/exchange
           GOOS=linux GOARCH=amd64 go build -trimpath -o dist/relay-linux-amd64    ./cmd/relay
 
-          GOOS=linux   GOARCH=amd64 go build -trimpath -o dist/burrow-linux-amd64       .
-          GOOS=darwin  GOARCH=amd64 go build -trimpath -o dist/burrow-darwin-amd64      .
-          GOOS=darwin  GOARCH=arm64 go build -trimpath -o dist/burrow-darwin-arm64      .
-          GOOS=windows GOARCH=amd64 go build -trimpath -o dist/burrow-windows-amd64.exe .
+          LDFLAGS="-X main.version=${VERSION}"
+          GOOS=linux   GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/burrow-linux-amd64       .
+          GOOS=darwin  GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/burrow-darwin-amd64      .
+          GOOS=darwin  GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o dist/burrow-darwin-arm64      .
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o dist/burrow-windows-amd64.exe .
 
       - name: Create release
         uses: softprops/action-gh-release@v2

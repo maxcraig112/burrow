@@ -11,6 +11,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var version = "dev"
+
 func init() {
 	// Priority (lowest to highest): user config < local .env < actual env var.
 	cfg := make(map[string]string)
@@ -75,6 +77,9 @@ func main() {
 	case "receive-web":
 		requireConfig()
 		cmdReceiveWeb(os.Args[2:])
+	case "version", "--version", "-v":
+		fmt.Println(version)
+		return
 	case "config":
 		cmdConfig(os.Args[2:])
 	default:
@@ -227,14 +232,16 @@ func cmdConfig(args []string) {
 }
 
 func usage() {
-	fmt.Println(`burrow - encrypted peer-to-peer file transfer
+	fmt.Printf(`burrow %s - encrypted peer-to-peer file transfer
 
 Usage:
   burrow send <file|dir>           Send a file or directory and display the receive code
   burrow receive <code>            Receive a file using the code from the sender
   burrow receive-web               Host a web upload page and display a QR code
+  burrow version                   Print version
   burrow config                    Show current server addresses and config path
-  burrow config <exchange> <relay> Save server addresses to user config`)
+  burrow config <exchange> <relay> Save server addresses to user config
+`, version)
 }
 
 func fatalf(format string, args ...any) {
