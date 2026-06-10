@@ -30,7 +30,7 @@ func main() {
 
 	logger = logger.Level(parseLevel(logger))
 
-	ex := exchange.New(ttl, logger)
+	ex := exchange.New(ttl, logger, exchange.FlagsFromEnv())
 	h := transport.NewHandler(ex, ttl, logger)
 
 	mux := http.NewServeMux()

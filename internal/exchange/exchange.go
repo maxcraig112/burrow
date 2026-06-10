@@ -15,22 +15,24 @@ type Exchange struct {
 	ttl      time.Duration
 	pakeWait time.Duration // how long Receive waits for the sender's PAKE
 	logger   zerolog.Logger
+	flags    Flags
 }
 
-// New creates an Exchange with the given session TTL.
+// New creates an Exchange with the given session TTL and runtime flags.
 // Expired entries are purged on an interval of 2× TTL.
-func New(ttl time.Duration, logger zerolog.Logger) *Exchange {
+func New(ttl time.Duration, logger zerolog.Logger, flags Flags) *Exchange {
 	return &Exchange{
 		cache:    cache.New(ttl, ttl*2),
 		ttl:      ttl,
 		pakeWait: 10 * time.Second,
 		logger:   logger,
+		flags:    flags,
 	}
 }
 
 // Send generates a unique nameplate, stores a new session in the cache, and
 // returns it. The caller must call StoreSenderPAKE before any receiver can
-// complete the exchange.
+// complete the exchange. If a fixed nameplate is configured, it is always used.
 func (e *Exchange) Send() (*Session, error) {
 	np := e.uniqueNameplate()
 	s := newSession(np)
@@ -93,10 +95,12 @@ func (e *Exchange) Receive(nameplate, receiverPAKE string) (string, error) {
 	return s.SenderPAKE(), nil
 }
 
-// uniqueNameplate generates nameplates until it finds one not currently in
-// the cache. Collisions are extremely unlikely (50^3 = 125,000 combinations)
-// but handled correctly.
+// uniqueNameplate returns the fixed nameplate when configured, otherwise
+// generates random nameplates until finding one not in the cache.
 func (e *Exchange) uniqueNameplate() string {
+	if e.flags.FixedNameplate != "" {
+		return e.flags.FixedNameplate
+	}
 	for {
 		np := nameplate.Generate()
 		if _, exists := e.cache.Get(np); !exists {
