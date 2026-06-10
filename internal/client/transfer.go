@@ -156,11 +156,6 @@ func SendDir(keys *pake.DerivedKeys, dirPath string, onFile func(relPath string,
 		}
 		totalSent += fe.size
 		f.Close()
-
-		// Zero-length marker signals end of this file.
-		if _, err := conn.Write([]byte{0, 0, 0, 0}); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -331,7 +326,6 @@ func streamFile(conn net.Conn, aead cipher.AEAD, f *os.File, size, offset int64,
 			return fmt.Errorf("read file: %w", readErr)
 		}
 	}
-	// Zero-length marker for single-file transfers only; dirs send it externally.
 	_, err := conn.Write([]byte{0, 0, 0, 0})
 	return err
 }
