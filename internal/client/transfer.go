@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -18,6 +19,11 @@ import (
 )
 
 const chunkSize = 64 * 1024 // 64 KB per encrypted chunk
+
+// IOBufferSize is the write-buffer size used by SendDir and the read-buffer
+// size used by ReceiveTransfer. Larger values coalesce more small-file frames
+// into fewer TCP segments. Override in tests to compare different sizes.
+var IOBufferSize = 256 * 1024
 
 // fileHeader is sent as the first encrypted chunk of every transfer.
 // Type "dir" precedes a directory transfer; omitted/"file" is a single file.
@@ -37,6 +43,7 @@ type IncomingTransfer struct {
 	Size  int64  // total bytes
 	Count int    // number of files (1 for a single-file transfer)
 	conn  net.Conn
+	br    *bufio.Reader // buffered reader wrapping conn; reduces read syscall count
 	aead  cipher.AEAD
 }
 
@@ -76,6 +83,9 @@ func SendFile(keys *pake.DerivedKeys, filePath string, progress func(sent, total
 // SendDir connects to the relay and streams every file under dirPath.
 // onFile is called just before each file begins sending; may be nil.
 // progress is called with (totalSent, totalSize) after each chunk; may be nil.
+//
+// Writes are buffered (256 KB) so that per-file protocol frames for small
+// files are coalesced into large TCP segments instead of many tiny ones.
 func SendDir(keys *pake.DerivedKeys, dirPath string, onFile func(relPath string, size int64), progress func(sent, total int64)) error {
 	type entry struct {
 		abs  string
@@ -115,13 +125,18 @@ func SendDir(keys *pake.DerivedKeys, dirPath string, onFile func(relPath string,
 		return fmt.Errorf("create cipher: %w", err)
 	}
 
+	// Wrap the connection in a write buffer. Small-file directories produce
+	// many tiny encrypted frames; buffering coalesces them into large TCP
+	// segments and cuts syscall count from O(files) to O(bytes/bufferSize).
+	bw := bufio.NewWriterSize(conn, IOBufferSize)
+
 	dirHdr, _ := json.Marshal(fileHeader{
 		Type:  "dir",
 		Name:  filepath.Base(dirPath),
 		Size:  totalSize,
 		Count: len(files),
 	})
-	if err := writeChunk(conn, aead, dirHdr); err != nil {
+	if err := writeChunk(bw, aead, dirHdr); err != nil {
 		return fmt.Errorf("send dir header: %w", err)
 	}
 
@@ -137,7 +152,7 @@ func SendDir(keys *pake.DerivedKeys, dirPath string, onFile func(relPath string,
 			Path: fe.rel,
 			Size: fe.size,
 		})
-		if err := writeChunk(conn, aead, fhdr); err != nil {
+		if err := writeChunk(bw, aead, fhdr); err != nil {
 			return fmt.Errorf("send file header: %w", err)
 		}
 
@@ -150,7 +165,7 @@ func SendDir(keys *pake.DerivedKeys, dirPath string, onFile func(relPath string,
 		if progress != nil {
 			wrap = func(sent, _ int64) { progress(totalSent+sent, totalSize) }
 		}
-		if err := streamFile(conn, aead, f, fe.size, 0, wrap); err != nil {
+		if err := streamFile(bw, aead, f, fe.size, 0, wrap); err != nil {
 			f.Close()
 			return err
 		}
@@ -158,7 +173,7 @@ func SendDir(keys *pake.DerivedKeys, dirPath string, onFile func(relPath string,
 		f.Close()
 	}
 
-	return nil
+	return bw.Flush()
 }
 
 // ReceiveTransfer connects to the relay, reads the initial header, and returns
@@ -175,7 +190,11 @@ func ReceiveTransfer(keys *pake.DerivedKeys) (*IncomingTransfer, error) {
 		return nil, fmt.Errorf("create cipher: %w", err)
 	}
 
-	hdrBytes, err := readChunk(conn, aead)
+	// Buffer incoming data to amortise read syscalls over the many small
+	// chunk frames that arrive during a directory transfer.
+	br := bufio.NewReaderSize(conn, IOBufferSize)
+
+	hdrBytes, err := readChunk(br, aead)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("receive header: %w", err)
@@ -187,7 +206,7 @@ func ReceiveTransfer(keys *pake.DerivedKeys) (*IncomingTransfer, error) {
 		return nil, fmt.Errorf("parse header: %w", err)
 	}
 
-	t := &IncomingTransfer{conn: conn, aead: aead, Name: hdr.Name, Size: hdr.Size}
+	t := &IncomingTransfer{conn: conn, br: br, aead: aead, Name: hdr.Name, Size: hdr.Size}
 	if hdr.Type == "dir" {
 		t.IsDir = true
 		t.Count = hdr.Count
@@ -211,7 +230,7 @@ func (t *IncomingTransfer) Save(destDir string, onFile func(relPath string, size
 			onFile(t.Name, t.Size)
 		}
 		destPath := filepath.Join(destDir, t.Name)
-		if err := receiveFileData(t.conn, t.aead, destPath, t.Size, func(n, _ int64) {
+		if err := receiveFileData(t.br, t.aead, destPath, t.Size, func(n, _ int64) {
 			if progress != nil {
 				progress(n, t.Size)
 			}
@@ -229,7 +248,7 @@ func (t *IncomingTransfer) Save(destDir string, onFile func(relPath string, size
 
 	var totalReceived int64
 	for i := 0; i < t.Count; i++ {
-		hdrBytes, err := readChunk(t.conn, t.aead)
+		hdrBytes, err := readChunk(t.br, t.aead)
 		if err != nil {
 			return "", fmt.Errorf("receive file header: %w", err)
 		}
@@ -254,7 +273,7 @@ func (t *IncomingTransfer) Save(destDir string, onFile func(relPath string, size
 		}
 
 		localReceived := int64(0)
-		if err := receiveFileData(t.conn, t.aead, destPath, hdr.Size, func(n, _ int64) {
+		if err := receiveFileData(t.br, t.aead, destPath, hdr.Size, func(n, _ int64) {
 			delta := n - localReceived
 			localReceived = n
 			totalReceived += delta
@@ -271,7 +290,7 @@ func (t *IncomingTransfer) Save(destDir string, onFile func(relPath string, size
 
 // receiveFileData reads encrypted chunks until the zero-length EOF marker and
 // writes them to destPath.
-func receiveFileData(conn net.Conn, aead cipher.AEAD, destPath string, _ int64, progress func(received, total int64)) error {
+func receiveFileData(r io.Reader, aead cipher.AEAD, destPath string, _ int64, progress func(received, total int64)) error {
 	out, err := os.Create(destPath)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
@@ -279,7 +298,7 @@ func receiveFileData(conn net.Conn, aead cipher.AEAD, destPath string, _ int64, 
 
 	var received int64
 	for {
-		chunk, err := readChunk(conn, aead)
+		chunk, err := readChunk(r, aead)
 		if err == io.EOF {
 			break
 		}
@@ -303,15 +322,14 @@ func receiveFileData(conn net.Conn, aead cipher.AEAD, destPath string, _ int64, 
 }
 
 // streamFile sends the contents of f as encrypted chunks then writes the
-// zero-length EOF marker. offset is added to sent bytes for the progress
-// callback (used when tracking total bytes across multiple files).
-func streamFile(conn net.Conn, aead cipher.AEAD, f *os.File, size, offset int64, progress func(sent, total int64)) error {
+// zero-length EOF marker.
+func streamFile(w io.Writer, aead cipher.AEAD, f *os.File, size, offset int64, progress func(sent, total int64)) error {
 	buf := make([]byte, chunkSize)
 	var sent int64
 	for {
 		n, readErr := f.Read(buf)
 		if n > 0 {
-			if err := writeChunk(conn, aead, buf[:n]); err != nil {
+			if err := writeChunk(w, aead, buf[:n]); err != nil {
 				return fmt.Errorf("send chunk: %w", err)
 			}
 			sent += int64(n)
@@ -326,7 +344,7 @@ func streamFile(conn net.Conn, aead cipher.AEAD, f *os.File, size, offset int64,
 			return fmt.Errorf("read file: %w", readErr)
 		}
 	}
-	_, err := conn.Write([]byte{0, 0, 0, 0})
+	_, err := w.Write([]byte{0, 0, 0, 0})
 	return err
 }
 
@@ -377,27 +395,28 @@ func newAEAD(key []byte) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-// writeChunk encrypts plaintext and writes [4-byte length][nonce][ciphertext+tag].
-func writeChunk(conn net.Conn, aead cipher.AEAD, plaintext []byte) error {
+// writeChunk encrypts plaintext and writes [4-byte length][nonce][ciphertext+tag]
+// as a single write to minimise syscalls.
+func writeChunk(w io.Writer, aead cipher.AEAD, plaintext []byte) error {
 	nonce := make([]byte, aead.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		return err
 	}
 	ct := aead.Seal(nonce, nonce, plaintext, nil)
 
-	var lenBuf [4]byte
-	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(ct)))
-	if _, err := conn.Write(lenBuf[:]); err != nil {
-		return err
-	}
-	_, err := conn.Write(ct)
+	// Pre-allocate one frame buffer: 4-byte length prefix + ciphertext.
+	// A single Write avoids two syscalls (or two bufio copies) per chunk.
+	frame := make([]byte, 4+len(ct))
+	binary.BigEndian.PutUint32(frame, uint32(len(ct)))
+	copy(frame[4:], ct)
+	_, err := w.Write(frame)
 	return err
 }
 
 // readChunk reads one encrypted chunk. Returns io.EOF on the zero-length marker.
-func readChunk(conn net.Conn, aead cipher.AEAD) ([]byte, error) {
+func readChunk(r io.Reader, aead cipher.AEAD) ([]byte, error) {
 	var lenBuf [4]byte
-	if _, err := io.ReadFull(conn, lenBuf[:]); err != nil {
+	if _, err := io.ReadFull(r, lenBuf[:]); err != nil {
 		return nil, err
 	}
 	chunkLen := binary.BigEndian.Uint32(lenBuf[:])
@@ -405,7 +424,7 @@ func readChunk(conn net.Conn, aead cipher.AEAD) ([]byte, error) {
 		return nil, io.EOF
 	}
 	data := make([]byte, chunkLen)
-	if _, err := io.ReadFull(conn, data); err != nil {
+	if _, err := io.ReadFull(r, data); err != nil {
 		return nil, err
 	}
 	ns := aead.NonceSize()
