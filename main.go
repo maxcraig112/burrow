@@ -9,40 +9,24 @@ import (
 	"github.com/maxcraig112/burrow/internal/progress"
 
 	"github.com/joho/godotenv"
+	"github.com/maxcraig112/env"
 )
 
 var version = "dev"
 
 func init() {
 	// Priority (lowest to highest): user config < local .env < actual env var.
-	cfg := make(map[string]string)
+	// godotenv.Load never overrides an already-set variable, so loading the
+	// local .env before the user config gives .env precedence over it, and
+	// both yield to the real process environment.
+	_ = godotenv.Load(".env")
 	if p, err := userConfigPath(); err == nil {
-		if m, err := godotenv.Read(p); err == nil {
-			for k, v := range m {
-				cfg[k] = v
-			}
-		}
+		_ = godotenv.Load(p)
 	}
-	if m, err := godotenv.Read(".env"); err == nil {
-		for k, v := range m {
-			cfg[k] = v
-		}
-	}
-	get := func(key string) string {
-		if v := os.Getenv(key); v != "" {
-			return v
-		}
-		return cfg[key]
-	}
-	if addr := get("EXCHANGE_ADDR"); addr != "" {
-		client.ExchangeAddr = addr
-	}
-	if addr := get("RELAY_ADDR"); addr != "" {
-		client.RelayAddr = addr
-	}
-	if addr := get("TUNNEL_ADDR"); addr != "" {
-		client.TunnelAddr = addr
-	}
+	// Each Get falls back to the current value when the variable is unset.
+	client.ExchangeAddr = env.Get("EXCHANGE_ADDR", client.ExchangeAddr)
+	client.RelayAddr = env.Get("RELAY_ADDR", client.RelayAddr)
+	client.TunnelAddr = env.Get("TUNNEL_ADDR", client.TunnelAddr)
 }
 
 func userConfigPath() (string, error) {

@@ -2,33 +2,22 @@ package main
 
 import (
 	"context"
-	"flag"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/maxcraig112/burrow/internal/exchange"
+	"github.com/maxcraig112/burrow/internal/logging"
 	"github.com/maxcraig112/burrow/internal/transport"
-	"github.com/rs/zerolog"
+	"github.com/maxcraig112/env"
 )
 
 const ttl = 5 * time.Minute
 
 func main() {
-	envFile := flag.String("env", ".env", "path to .env file")
-	flag.Parse()
-
-	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).
-		With().Timestamp().Logger()
-
-	if err := godotenv.Load(*envFile); err != nil && !os.IsNotExist(err) {
-		logger.Warn().Str("path", *envFile).Err(err).Msg("could not load env file")
-	}
-
-	logger = logger.Level(parseLevel(logger))
+	logger := logging.New()
 
 	ex := exchange.New(ttl, logger, exchange.FlagsFromEnv())
 	h := transport.NewHandler(ex, ttl, logger)
@@ -37,10 +26,7 @@ func main() {
 	mux.HandleFunc("GET /send", h.Send)
 	mux.HandleFunc("POST /receive", h.Receive)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	port := env.Get("PORT", "8080")
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
@@ -69,17 +55,4 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error().Err(err).Msg("shutdown error")
 	}
-}
-
-func parseLevel(logger zerolog.Logger) zerolog.Level {
-	lvl := os.Getenv("LOG_LEVEL")
-	if lvl == "" {
-		return zerolog.InfoLevel
-	}
-	level, err := zerolog.ParseLevel(lvl)
-	if err != nil {
-		logger.Warn().Str("value", lvl).Msg("invalid LOG_LEVEL, defaulting to info")
-		return zerolog.InfoLevel
-	}
-	return level
 }
