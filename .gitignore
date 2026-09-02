@@ -3,4 +3,5 @@
 *.tfstate*
 *.tfvars
 *.exe
-.task
+/bin/
+.task/
