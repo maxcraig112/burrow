@@ -44,7 +44,7 @@ func cmdReceiveWeb(args []string) {
 		fmt.Printf("\nDashboard : %s/active\n", uploadURL[:idx])
 	}
 
-	fmt.Println("\nWaiting for uploads — press Ctrl+C to stop.\n")
+	fmt.Print("\nWaiting for uploads — press Ctrl+C to stop.\n\n")
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
