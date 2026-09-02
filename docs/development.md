@@ -43,6 +43,20 @@ Then run the CLI against them:
 ./bin/burrow send photo.jpg
 ```
 
+## Profiling
+
+Both servers accept an optional `-pprof <addr>` flag that serves
+[`net/http/pprof`](https://pkg.go.dev/net/http/pprof) on a dedicated,
+unauthenticated listener (bind it to loopback):
+
+```bash
+./bin/exchange -pprof localhost:6060
+./bin/relay    -pprof localhost:6061
+
+go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30  # CPU
+go tool pprof http://localhost:6060/debug/pprof/heap                # memory
+```
+
 ## Configuration
 
 All binaries read environment variables from `.env`.

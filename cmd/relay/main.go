@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"net"
 	"net/http"
 	"os"
@@ -10,12 +11,15 @@ import (
 	"time"
 
 	"github.com/maxcraig112/burrow/internal/logging"
+	"github.com/maxcraig112/burrow/internal/profiling"
 	"github.com/maxcraig112/burrow/internal/relay"
 	"github.com/maxcraig112/env"
 )
 
 func main() {
+	pprofAddr := flag.String("pprof", "", `serve net/http/pprof (CPU + memory) on this address, e.g. "localhost:6060"; disabled if empty`)
 	logger := logging.New()
+	profiling.Serve(*pprofAddr, logger)
 
 	tunnelPublicURL := env.Get("TUNNEL_PUBLIC_URL", "http://localhost:8082")
 	tunnelBind := env.Get("TUNNEL_BIND", ":8082")

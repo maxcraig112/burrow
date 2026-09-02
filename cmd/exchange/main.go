@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/maxcraig112/burrow/internal/exchange"
 	"github.com/maxcraig112/burrow/internal/logging"
+	"github.com/maxcraig112/burrow/internal/profiling"
 	"github.com/maxcraig112/burrow/internal/transport"
 	"github.com/maxcraig112/env"
 )
@@ -17,7 +19,9 @@ import (
 const ttl = 5 * time.Minute
 
 func main() {
+	pprofAddr := flag.String("pprof", "", `serve net/http/pprof (CPU + memory) on this address, e.g. "localhost:6060"; disabled if empty`)
 	logger := logging.New()
+	profiling.Serve(*pprofAddr, logger)
 
 	ex := exchange.New(ttl, logger, exchange.FlagsFromEnv())
 	h := transport.NewHandler(ex, ttl, logger)
