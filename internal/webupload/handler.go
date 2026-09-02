@@ -23,15 +23,8 @@ var uiTmpl = template.Must(template.New("ui").Parse(uiHTMLRaw))
 
 // NewHandler returns an http.Handler that serves the upload UI and saves
 // incoming files to destDir. The nameplate is used as the URL path prefix.
-// onUpload is called with the number of files saved after each upload batch;
-// it may be nil.
-func NewHandler(destDir, nameplate, description string, onUpload func(int)) http.Handler {
-	h := &uploadHandler{
-		destDir:     destDir,
-		nameplate:   nameplate,
-		description: description,
-		onUpload:    onUpload,
-	}
+func NewHandler(destDir, nameplate string) http.Handler {
+	h := &uploadHandler{destDir: destDir, nameplate: nameplate}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /"+nameplate+"/", h.serveUI)
 	mux.HandleFunc("POST /"+nameplate+"/upload", h.handleUpload)
@@ -39,19 +32,16 @@ func NewHandler(destDir, nameplate, description string, onUpload func(int)) http
 }
 
 type uploadHandler struct {
-	destDir     string
-	nameplate   string
-	description string
-	onUpload    func(int)
-	mu          sync.Mutex // serialises terminal progress output
+	destDir   string
+	nameplate string
+	mu        sync.Mutex // serialises terminal progress output
 }
 
 func (h *uploadHandler) serveUI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	uiTmpl.Execute(w, map[string]string{ //nolint:errcheck
-		"Nameplate":   h.nameplate,
-		"Description": h.description,
-		"Folder":      filepath.Base(h.destDir),
+		"Nameplate": h.nameplate,
+		"Folder":    filepath.Base(h.destDir),
 	})
 }
 
@@ -100,10 +90,6 @@ func (h *uploadHandler) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "saved": saved})
-
-	if h.onUpload != nil && len(saved) > 0 {
-		go h.onUpload(len(saved))
-	}
 }
 
 func saveFile(r io.Reader, destPath string, contentLength int64) (retErr error) {

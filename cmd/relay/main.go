@@ -19,14 +19,8 @@ func main() {
 
 	tunnelPublicURL := env.Get("TUNNEL_PUBLIC_URL", "http://localhost:8082")
 	tunnelBind := env.Get("TUNNEL_BIND", ":8082")
-	uploadDir := env.Get("UPLOAD_DIR")
-	if uploadDir == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			uploadDir = cwd
-		}
-	}
 
-	hub := relay.NewTunnelHub(tunnelPublicURL, uploadDir, logger)
+	hub := relay.NewTunnelHub(tunnelPublicURL, logger)
 	r := relay.New(2*time.Minute, logger, hub)
 
 	ln, err := net.Listen("tcp", ":9090")

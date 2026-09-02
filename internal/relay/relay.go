@@ -58,10 +58,9 @@ func (r *Relay) Handle(conn net.Conn) {
 			conn.Close()
 		}
 	case strings.HasPrefix(line, "tunnel "):
-		rest := strings.TrimPrefix(line, "tunnel ")
-		token, description, _ := strings.Cut(rest, " ")
+		token, _, _ := strings.Cut(strings.TrimPrefix(line, "tunnel "), " ")
 		if r.hub != nil {
-			r.hub.register(conn, token, description)
+			r.hub.register(conn, token)
 		} else {
 			fmt.Fprintf(conn, "error: tunnels not enabled\n")
 			conn.Close()

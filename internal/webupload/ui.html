@@ -1,52 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Burrow</title>
-  <link rel="stylesheet" href="/static/base.css">
-  <link rel="stylesheet" href="/static/upload.css">
+  <link rel="stylesheet" href="/static/vendor/pico.classless.min.css">
+  <link rel="stylesheet" href="/static/theme.css">
+  <script src="/static/app.js"></script>
+  <script defer src="/static/vendor/alpine.min.js"></script>
 </head>
 <body>
-<header class="page-header">
-  <a class="home-btn" href="/">← Burrow</a>
-</header>
-<div class="main-area">
-<div class="card">
-  <div class="logo">Burrow</div>
-  <div class="sub">Send files to the receiver</div>
+<main x-data="uploadForm">
+  <article>
+    <hgroup>
+      <h2 class="logo">Burrow</h2>
+      <p>Send files to the receiver</p>
+    </hgroup>
 
-  <div class="session-info">
-    <span class="info-label">Session</span>
-    <span class="info-value">{{.Nameplate}}</span>
-    {{if .Description}}
-    <span class="info-label">Note</span>
-    <span class="info-value info-plain">{{.Description}}</span>
-    {{end}}
-    <span class="info-label">Saving to</span>
-    <span class="info-value info-plain">{{.Folder}}</span>
-  </div>
+    <p class="muted" style="display:grid;grid-template-columns:auto 1fr;gap:.3rem .75rem;background:var(--pico-card-sectioning-background-color);padding:.75rem 1rem;border-radius:8px">
+      <span>Session</span><span class="mono">{{.Nameplate}}</span>
+      <span>Saving to</span><span><em>{{.Folder}}</em></span>
+    </p>
 
-  <div class="drop" id="drop">
-    <div class="drop-icon">📂</div>
-    <div class="drop-text">Drop files here</div>
-  </div>
+    <div class="drop" x-data="{ over: false }"
+      :class="{ over }"
+      @click="$refs.file.click()"
+      @dragover.prevent="over = true"
+      @dragleave="over = false"
+      @drop.prevent="over = false; add($event.dataTransfer.files)">
+      <div class="icon">📂</div>
+      <small class="muted">Drop files here</small>
+    </div>
 
-  <div class="file-list" id="file-list"></div>
+    <ul style="list-style:none;padding:0;max-height:200px;overflow:auto" x-show="files.length">
+      <template x-for="(f, i) in files" :key="f.name + f.size">
+        <li class="muted" style="display:flex;gap:.5rem;align-items:center;border-bottom:1px solid #23263a;padding:.35rem .25rem">
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="f.name">
+            <span x-text="f.name"></span> <span class="muted" x-text="'(' + fmtBytes(f.size) + ')'"></span>
+          </span>
+          <button class="secondary outline" style="padding:.1rem .4rem;width:auto" @click="remove(i)">✕</button>
+        </li>
+      </template>
+    </ul>
 
-  <div class="btn-row">
-    <button class="btn btn-secondary" id="browse-btn" type="button">Browse</button>
-    <button class="btn btn-primary"   id="upload-btn" type="button" disabled>Upload</button>
-  </div>
+    <div class="row">
+      <button class="secondary" @click="$refs.file.click()">Browse</button>
+      <button @click="upload()" x-bind:disabled="!files.length">Upload</button>
+    </div>
 
-  <div class="status" id="status"></div>
-  <div class="all-sessions"><a href="/active">View all active sessions →</a></div>
-  <div class="close-session"><button class="btn-close" id="close-btn" type="button">Close session</button></div>
-  <input type="file" id="file-input" multiple accept="*/*">
-</div>
-</div>
-<script>window.NAMEPLATE = "{{.Nameplate}}";</script>
-<script src="/static/utils.js"></script>
-<script src="/static/upload-page.js"></script>
+    <p class="center" :class="statusClass" x-text="status"></p>
+
+    <input type="file" x-ref="file" multiple hidden @change="add($event.target.files); $event.target.value = ''">
+  </article>
+</main>
 </body>
 </html>
