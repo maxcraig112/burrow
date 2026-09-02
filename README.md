@@ -111,4 +111,3 @@ Files are saved to the current working directory. Accepts multiple uploads until
 
 - [Building from source &amp; local dev](docs/development.md)
 - [Self-hosting on a home server](docs/self-hosting.md)
-- [Deployment (GCP / Terraform)](docs/deployment.md)

@@ -2,19 +2,27 @@
 
 ## Prerequisites
 
-- Go 1.22+
-- `make` (optional)
+- Go 1.27+
+- [Task](https://taskfile.dev) (`go install github.com/go-task/task/v3/cmd/task@latest`)
+- [ko](https://ko.build) — only for building container images (`go install github.com/google/ko@latest`)
 
 ## Build
 
 ```bash
 # All three binaries into bin/
-make
+task
 
 # Or individually
-make exchange
-make relay
-make burrow
+task exchange
+task relay
+task burrow
+```
+
+## Test
+
+```bash
+task test   # unit tests
+task e2e    # end-to-end tests (in-process exchange + relay)
 ```
 
 ## Run servers locally
@@ -50,22 +58,24 @@ All binaries read environment variables from `.env`.
 ## Project structure
 
 ```text
+main.go         CLI entrypoint: send, receive, receive-web
 cmd/
   exchange/     HTTP + WebSocket exchange server
   relay/        TCP file relay + HTTP web-upload tunnel
-  burrow/       CLI: send, receive, receive-web
 internal/
   client/       Burrow client (exchange protocol, file transfer)
+  envfile/      Loads the -env .env file into the process environment
   exchange/     Session management, PAKE coordination
+  logging/      Shared zerolog console logger + LOG_LEVEL handling
   nameplate/    Random human-readable code generation
   pake/         X25519 ECDH + HKDF key derivation
-  progress/     Terminal progress bar
+  progress/     Terminal progress bar (wraps schollz/progressbar)
   qr/           QR code terminal rendering
   relay/        TCP splice + web tunnel hub
   transport/    Exchange HTTP handlers
   tunnel/       Tunnel client (receiver side of web-upload)
   webupload/    Upload HTTP handler + embedded browser UI
-deploy/         Dockerfiles for exchange and relay
-terraform/      GCP infrastructure (Cloud Run + Compute Engine)
-scripts/        Build and push helper
 ```
+
+Container images are built with [ko](https://ko.build) straight from the `cmd/`
+packages — no Dockerfile. Config lives in `.ko.yaml`; see `task image` / `task publish`.
