@@ -46,7 +46,7 @@ The main difference that burrow has over magic-wormhole is the ability for the r
 
 ## Install
 
-Requires Go 1.22+.
+Requires Go 1.27+.
 
 ```bash
 go install github.com/maxcraig112/burrow@latest
