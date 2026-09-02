@@ -6,7 +6,7 @@ on:
     paths:
       - "cmd/**"
       - "internal/**"
-      - "deploy/**"
+      - ".ko.yaml"
       - "go.mod"
       - "go.sum"
 
@@ -52,32 +52,20 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -trimpath -o dist/burrow-windows-amd64.exe .
 
       # ── Docker Hub (RC tag only, no latest) ──────────────────────────────────
-      - uses: docker/setup-qemu-action@v3
-
-      - uses: docker/setup-buildx-action@v3
+      - uses: ko-build/setup-ko@v0.8
 
       - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push exchange to Docker Hub
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: deploy/exchange.Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/burrow-exchange:${{ steps.version.outputs.version }}
-
-      - name: Push relay to Docker Hub
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: deploy/relay.Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/burrow-relay:${{ steps.version.outputs.version }}
+      - name: Build and push images
+        run: |
+          V=${{ steps.version.outputs.version }}
+          KO_DOCKER_REPO=${{ secrets.DOCKERHUB_USERNAME }}/burrow-exchange \
+            ko build --bare --platform=linux/amd64,linux/arm64 --tags "$V" ./cmd/exchange
+          KO_DOCKER_REPO=${{ secrets.DOCKERHUB_USERNAME }}/burrow-relay \
+            ko build --bare --platform=linux/amd64,linux/arm64 --tags "$V" ./cmd/relay
 
       # ── GitHub pre-release ───────────────────────────────────────────────────
       - name: Create pre-release
