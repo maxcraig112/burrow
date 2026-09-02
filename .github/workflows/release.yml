@@ -67,7 +67,7 @@ jobs:
           files: dist/*
 
       # ── Docker Hub (versioned tag + latest) ──────────────────────────────────
-      - uses: ko-build/setup-ko@v0.8
+      - uses: ko-build/setup-ko@v0.10
 
       - uses: docker/login-action@v3
         with:
