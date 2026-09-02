@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"net"
 	"net/http"
 	"os"
@@ -10,39 +9,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/maxcraig112/burrow/internal/logging"
 	"github.com/maxcraig112/burrow/internal/relay"
-	"github.com/rs/zerolog"
+	"github.com/maxcraig112/env"
 )
 
 func main() {
-	envFile := flag.String("env", ".env", "path to .env file")
-	flag.Parse()
+	logger := logging.New()
 
-	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).
-		With().Timestamp().Logger()
+	tunnelPublicURL := env.Get("TUNNEL_PUBLIC_URL", "http://localhost:8082")
+	tunnelBind := env.Get("TUNNEL_BIND", ":8082")
 
-	if err := godotenv.Load(*envFile); err != nil && !os.IsNotExist(err) {
-		logger.Warn().Str("path", *envFile).Err(err).Msg("could not load env file")
-	}
-	logger = logger.Level(parseLevel(logger))
-
-	tunnelPublicURL := os.Getenv("TUNNEL_PUBLIC_URL")
-	if tunnelPublicURL == "" {
-		tunnelPublicURL = "http://localhost:8082"
-	}
-	tunnelBind := os.Getenv("TUNNEL_BIND")
-	if tunnelBind == "" {
-		tunnelBind = ":8082"
-	}
-	uploadDir := os.Getenv("UPLOAD_DIR")
-	if uploadDir == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			uploadDir = cwd
-		}
-	}
-
-	hub := relay.NewTunnelHub(tunnelPublicURL, uploadDir, logger)
+	hub := relay.NewTunnelHub(tunnelPublicURL, logger)
 	r := relay.New(2*time.Minute, logger, hub)
 
 	ln, err := net.Listen("tcp", ":9090")
@@ -89,17 +67,4 @@ func main() {
 		}
 		go r.Handle(conn)
 	}
-}
-
-func parseLevel(logger zerolog.Logger) zerolog.Level {
-	lvl := os.Getenv("LOG_LEVEL")
-	if lvl == "" {
-		return zerolog.InfoLevel
-	}
-	level, err := zerolog.ParseLevel(lvl)
-	if err != nil {
-		logger.Warn().Str("value", lvl).Msg("invalid LOG_LEVEL, defaulting to info")
-		return zerolog.InfoLevel
-	}
-	return level
 }

@@ -1,0 +1,51 @@
+version: '3'
+
+vars:
+  BIN: bin
+
+tasks:
+  default:
+    desc: Build all binaries into bin/
+    deps: [exchange, relay, burrow]
+
+  exchange:
+    desc: Build the exchange server
+    cmd: go build -o {{.BIN}}/ ./cmd/exchange
+
+  relay:
+    desc: Build the relay server
+    cmd: go build -o {{.BIN}}/ ./cmd/relay
+
+  burrow:
+    desc: Build the burrow CLI
+    cmd: go build -o {{.BIN}}/ .
+
+  test:
+    desc: Run unit tests
+    cmd: go test ./... -count=1 {{.CLI_ARGS}}
+
+  e2e:
+    desc: Run end-to-end tests (in-process exchange + relay)
+    cmd: go test ./e2e/... -v -timeout 120s -count=1 {{.CLI_ARGS}}
+
+  lint:
+    desc: Run golangci-lint
+    cmd: golangci-lint run {{.CLI_ARGS}}
+
+  image:
+    desc: Build both service images into the local Docker daemon (via ko)
+    cmds:
+      - KO_DOCKER_REPO=ko.local/burrow-exchange ko build --bare --local ./cmd/exchange
+      - KO_DOCKER_REPO=ko.local/burrow-relay    ko build --bare --local ./cmd/relay
+
+  publish:
+    desc: Build and push multi-arch images to Docker Hub (DOCKER_USER=<dockerhub-user>)
+    requires:
+      vars: [DOCKER_USER]
+    cmds:
+      - KO_DOCKER_REPO={{.DOCKER_USER}}/burrow-exchange ko build --bare --platform=linux/amd64,linux/arm64 --tags latest ./cmd/exchange
+      - KO_DOCKER_REPO={{.DOCKER_USER}}/burrow-relay    ko build --bare --platform=linux/amd64,linux/arm64 --tags latest ./cmd/relay
+
+  clean:
+    desc: Remove build artifacts
+    cmd: rm -rf {{.BIN}}

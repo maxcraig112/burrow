@@ -16,8 +16,8 @@ import (
 
 // newTunnelClient builds a tunnel.Client using the relay address currently set
 // in the client package globals (configured by newHarnessWithHub).
-func newTunnelClient(token, description string, handler http.Handler) *tunnel.Client {
-	return tunnel.NewClient(client.RelayAddr, token, description, handler)
+func newTunnelClient(token string, handler http.Handler) *tunnel.Client {
+	return tunnel.NewClient(client.RelayAddr, token, handler)
 }
 
 // TestReceiveWebTunnelRegistration verifies that a tunnel client can register
@@ -26,7 +26,7 @@ func TestReceiveWebTunnelRegistration(t *testing.T) {
 	_, _, hubSrv := newHarnessWithHub(t)
 
 	token := nameplate.Generate()
-	tc := newTunnelClient(token, "registration test", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	tc := newTunnelClient(token, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, "ok")
 	}))
 
@@ -53,7 +53,7 @@ func TestReceiveWebTunnelHTTP(t *testing.T) {
 	token := nameplate.Generate()
 	want := "tunnel-ok:" + token
 
-	tc := newTunnelClient(token, "http test", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	tc := newTunnelClient(token, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, want)
 	}))
 
@@ -103,7 +103,7 @@ func TestReceiveWebLongLivedTunnel(t *testing.T) {
 
 			token := nameplate.Generate()
 			var count int
-			tun := newTunnelClient(token, "long-lived", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			tun := newTunnelClient(token, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				count++
 				fmt.Fprintf(w, "req%d", count)
 			}))

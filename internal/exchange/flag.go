@@ -1,6 +1,6 @@
 package exchange
 
-import "os"
+import "github.com/maxcraig112/env"
 
 const (
 	EnvNameplate = "NAMEPLATE" // when set, every Send returns this fixed nameplate
@@ -14,6 +14,6 @@ type Flags struct {
 // FlagsFromEnv reads all exchange Flags from the current environment.
 func FlagsFromEnv() Flags {
 	return Flags{
-		FixedNameplate: os.Getenv(EnvNameplate),
+		FixedNameplate: env.Get(EnvNameplate),
 	}
 }

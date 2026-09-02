@@ -1,0 +1,79 @@
+/* Burrow theme: dark palette on top of Pico CSS (classless). The receive-web
+   upload page is semantic HTML; behaviour is Alpine.js.
+   Load order: pico.classless.min.css, then this file. */
+
+:root {
+  --pico-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --pico-border-radius: 10px;
+
+  --burrow-accent: #a78bfa;
+  --burrow-ok: #34d399;
+  --burrow-err: #f87171;
+}
+
+/* Dark is the only theme. */
+:root,
+:root:not([data-theme="light"]),
+[data-theme="dark"] {
+  color-scheme: dark;
+  --pico-background-color: #0f1117;
+  --pico-color: #e2e8f0;
+  --pico-h2-color: #e2e8f0;
+  --pico-muted-color: #64748b;
+  --pico-muted-border-color: #2d3148;
+
+  --pico-primary: #7c3aed;
+  --pico-primary-hover: #6d28d9;
+  --pico-primary-background: #7c3aed;
+  --pico-primary-hover-background: #6d28d9;
+  --pico-primary-inverse: #ffffff;
+  --pico-primary-focus: rgba(124, 58, 237, 0.35);
+
+  --pico-secondary: #94a3b8;
+  --pico-secondary-background: #2d3148;
+  --pico-secondary-hover-background: #3b4060;
+  --pico-secondary-inverse: #e2e8f0;
+
+  --pico-card-background-color: #1a1d27;
+  --pico-card-border-color: #2d3148;
+  --pico-card-sectioning-background-color: #13151f;
+
+  --pico-form-element-background-color: #13151f;
+  --pico-form-element-border-color: #2d3148;
+  --pico-form-element-active-border-color: #7c3aed;
+}
+
+body { min-height: 100vh; }
+
+body > main {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+body > main > article { width: 100%; max-width: 560px; }
+
+.logo { font-weight: 700; color: var(--burrow-accent); }
+.mono { font-family: var(--pico-font-family-monospace); color: var(--burrow-accent); }
+.ok  { color: var(--burrow-ok); }
+.err { color: var(--burrow-err); }
+.muted { color: var(--pico-muted-color); }
+
+.drop {
+  border: 2px dashed #3b4060;
+  border-radius: var(--pico-border-radius);
+  padding: 2.5rem 1.5rem;
+  margin: 1.25rem 0 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.drop.over {
+  border-color: var(--burrow-accent);
+  background: rgba(167, 139, 250, .07);
+}
+.drop .icon { font-size: 2rem; }
+
+.row { display: flex; gap: .75rem; }
+.row > * { flex: 1; }

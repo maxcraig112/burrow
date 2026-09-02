@@ -6,6 +6,14 @@
   <em>A gopher hole is called a burrow</em>
 </p>
 
+<p align="center">
+  <a href="https://github.com/maxcraig112/burrow/actions/workflows/lint.yml"><img src="https://img.shields.io/github/actions/workflow/status/maxcraig112/burrow/lint.yml?branch=main&amp;label=lint" alt="Lint status" /></a>
+  <a href="https://github.com/maxcraig112/burrow/actions/workflows/e2e.yml"><img src="https://img.shields.io/github/actions/workflow/status/maxcraig112/burrow/e2e.yml?branch=main&amp;label=e2e" alt="E2E status" /></a>
+  <a href="https://github.com/maxcraig112/burrow/actions/workflows/docker-build.yml"><img src="https://img.shields.io/github/actions/workflow/status/maxcraig112/burrow/docker-build.yml?branch=main&amp;label=build" alt="Build status" /></a>
+  <a href="https://hub.docker.com/r/maxcraig112/burrow-relay"><img src="https://img.shields.io/docker/pulls/maxcraig112/burrow-relay?label=docker%20pulls" alt="Docker pulls" /></a>
+  <a href="https://hub.docker.com/r/maxcraig112/burrow-relay"><img src="https://img.shields.io/docker/image-size/maxcraig112/burrow-relay/latest?label=image%20size" alt="Docker image size" /></a>
+</p>
+
 Burrow is an encrypted peer-to-peer file transfer tool inspired by [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole).
 
 Burrow allows you to establish a single or multi-file connection between any two machines, and securly transfer files between them. Burrow features a secure key exchange and file transfer through a relay server, which has the benefit of ensuring your files are not publically accessible and can bypass NAT issues.
@@ -111,4 +119,3 @@ Files are saved to the current working directory. Accepts multiple uploads until
 
 - [Building from source &amp; local dev](docs/development.md)
 - [Self-hosting on a home server](docs/self-hosting.md)
-- [Deployment (GCP / Terraform)](docs/deployment.md)

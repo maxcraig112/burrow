@@ -86,7 +86,7 @@ func newHarnessWithHub(t testing.TB) (*harness, *relay.TunnelHub, *httptest.Serv
 		t.Fatalf("hub listen: %v", err)
 	}
 	baseURL := "http://" + hubLn.Addr().String()
-	hub := relay.NewTunnelHub(baseURL, t.TempDir(), logger)
+	hub := relay.NewTunnelHub(baseURL, logger)
 	hubSrv := &http.Server{Handler: hub}
 	go hubSrv.Serve(hubLn) //nolint:errcheck
 

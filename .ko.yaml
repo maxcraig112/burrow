@@ -1,0 +1,22 @@
+# Ko is used to build Burrow without a dockerfile, see https://ko.build for more information
+defaultBaseImage: gcr.io/distroless/static:latest
+
+builds:
+  - id: exchange
+    main: ./cmd/exchange
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+  - id: relay
+    main: ./cmd/relay
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
